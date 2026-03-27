@@ -2,52 +2,190 @@ class MaterialModel {
   final String id;
   final String name;
   final String sku;
-  final String lot;
-  final String location;
   final int quantity;
+  final String unit;
+  final String lot;
   final String expiryDate;
+  final String location;
+  final bool isAvailable;
+  final int categoryId;
   final String category;
   final DateTime createdAt;
 
-  MaterialModel({
+  const MaterialModel({
     required this.id,
     required this.name,
     required this.sku,
-    required this.lot,
-    required this.location,
     required this.quantity,
+    required this.unit,
+    required this.lot,
     required this.expiryDate,
+    required this.location,
+    required this.isAvailable,
+    required this.categoryId,
     required this.category,
     required this.createdAt,
   });
 
+  String get materialName => name;
+  String get materialSKU => sku;
+  String get logNumber => lot;
+  String get storageLocation => location;
+  DateTime? get expiryDateValue => _tryParseDate(expiryDate);
+
   factory MaterialModel.fromJson(Map<String, dynamic> json) {
+    final quantity = _toInt(
+      json['quantity'] ?? json['qty'] ?? json['stock'] ?? 0,
+    );
+    final categoryId = _toInt(json['categoryId'] ?? json['categoryID'] ?? 0);
+    final rawCategory =
+        (json['categoryName'] ?? json['category'] ?? json['cat'] ?? '')
+            .toString()
+            .trim();
+
     return MaterialModel(
-      id: json['id'],
-      name: json['name'],
-      sku: json['sku'],
-      lot: json['lot'],
-      location: json['location'],
-      quantity: json['qty'],
-      expiryDate: json['expiry'],
-      category: json['cat'],
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
+      id: (json['id'] ?? json['productId'] ?? '').toString(),
+      name: (json['materialName'] ?? json['name'] ?? json['productName'] ?? '')
+          .toString(),
+      sku:
+          (json['material_SKU'] ??
+                  json['materialSku'] ??
+                  json['sku'] ??
+                  json['SKU'] ??
+                  '')
+              .toString(),
+      quantity: quantity,
+      unit: (json['unit'] ?? '').toString(),
+      lot: (json['logNumber'] ?? json['lotNumber'] ?? json['lot'] ?? '')
+          .toString(),
+      expiryDate: _normalizeDateString(
+        json['expiryDate'] ?? json['expiry'] ?? json['expirationDate'],
+      ),
+      location:
+          (json['storageLocation'] ?? json['location'] ?? json['shelf'] ?? '')
+              .toString(),
+      isAvailable: _toBool(
+        json['isAvailable'] ?? json['available'] ?? (quantity > 0),
+      ),
+      categoryId: categoryId,
+      category: rawCategory.isNotEmpty
+          ? rawCategory
+          : categoryId > 0
+          ? 'Category #$categoryId'
+          : 'Uncategorized',
+      createdAt:
+          _tryParseDateTime(json['createdAt'] ?? json['created_at']) ??
+          DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'name': name,
-      'sku': sku,
-      'lot': lot,
-      'location': location,
-      'qty': quantity,
-      'expiry': expiryDate,
-      'cat': category,
-      'created_at': createdAt.toIso8601String(),
+      if (id.isNotEmpty) 'id': _jsonFriendlyId(id),
+      'materialName': name,
+      'material_SKU': sku,
+      'quantity': quantity,
+      'unit': unit,
+      'logNumber': lot,
+      'expiryDate': expiryDate,
+      'storageLocation': location,
+      'isAvailable': isAvailable,
+      'categoryId': categoryId,
+      if (category.isNotEmpty) 'categoryName': category,
     };
+  }
+
+  Map<String, dynamic> toApiBody() {
+    return {
+      'materialName': name,
+      'material_SKU': sku,
+      'quantity': quantity,
+      'unit': unit,
+      'logNumber': lot,
+      'expiryDate': expiryDate,
+      'storageLocation': location,
+      'isAvailable': isAvailable,
+      'categoryId': categoryId,
+    };
+  }
+
+  MaterialModel copyWith({
+    String? id,
+    String? name,
+    String? sku,
+    int? quantity,
+    String? unit,
+    String? lot,
+    String? expiryDate,
+    String? location,
+    bool? isAvailable,
+    int? categoryId,
+    String? category,
+    DateTime? createdAt,
+  }) {
+    return MaterialModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      sku: sku ?? this.sku,
+      quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
+      lot: lot ?? this.lot,
+      expiryDate: expiryDate ?? this.expiryDate,
+      location: location ?? this.location,
+      isAvailable: isAvailable ?? this.isAvailable,
+      categoryId: categoryId ?? this.categoryId,
+      category: category ?? this.category,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static bool _toBool(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+
+    final normalized = value?.toString().toLowerCase() ?? '';
+    return normalized == 'true' || normalized == '1';
+  }
+
+  static DateTime? _tryParseDate(String value) {
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static DateTime? _tryParseDateTime(dynamic value) {
+    if (value == null || value.toString().trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      return DateTime.parse(value.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _normalizeDateString(dynamic value) {
+    if (value == null || value.toString().trim().isEmpty) {
+      return '';
+    }
+
+    final raw = value.toString();
+    final parsed = _tryParseDateTime(raw);
+    return parsed?.toIso8601String() ?? raw;
+  }
+
+  static dynamic _jsonFriendlyId(String value) {
+    return int.tryParse(value) ?? value;
   }
 }

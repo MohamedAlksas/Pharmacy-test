@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:graduation_project/Models/ProductProvider.dart';
+import 'package:graduation_project/Models/UserRoleModel.dart';
+import 'package:graduation_project/Models/materialModel.dart';
 import 'package:graduation_project/widgets/AddMaterial.dart';
-// Import the AddMaterialDialog from the previous artifact
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -11,447 +13,397 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchCtrl = TextEditingController();
+  String _availabilityFilter = 'All';
 
-  List<Map<String, dynamic>> materials = [
-    {
-      "name": "Paracetamol 500mg",
-      "sku": "SKU-PARA500",
-      "lot": "LOT-0001",
-      "location": "Shelf A-1",
-      "qty": 620,
-      "expiry": "2026-01-20",
-      "cat": "Analgesic",
-    },
-    {
-      "name": "Ibuprofen 400mg",
-      "sku": "SKU-IBU400",
-      "lot": "LOT-0002",
-      "location": "Shelf A-2",
-      "qty": 185,
-      "expiry": "2025-05-11",
-      "cat": "Analgesic",
-    },
-    {
-      "name": "Amoxicillin 250mg",
-      "sku": "SKU-AMX250",
-      "lot": "LOT-0003",
-      "location": "Shelf A-3",
-      "qty": 90,
-      "expiry": "2025-10-01",
-      "cat": "Antibiotic",
-    },
-    {
-      "name": "Saline Solution 0.9%",
-      "sku": "SKU-SAL090",
-      "lot": "LOT-0004",
-      "location": "Shelf B-1",
-      "qty": 52,
-      "expiry": "2027-02-15",
-      "cat": "IV Fluids",
-    },
-    {
-      "name": "Vitamin C 500mg",
-      "sku": "SKU-VIT500",
-      "lot": "LOT-0005",
-      "location": "Shelf B-2",
-      "qty": 330,
-      "expiry": "2026-09-10",
-      "cat": "Supplements",
-    },
-  ];
-
-  String? _filterCategory;
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final provider = ProductProvider.of(context);
+    final products = provider.products.where(_matchesFilters).toList();
 
-    final filtered = materials.where((item) {
-      final matchesSearch = item["name"].toString().toLowerCase().contains(
-        _searchCtrl.text.toLowerCase(),
-      );
-      final matchesFilter = _filterCategory == null
-          ? true
-          : item["cat"] == _filterCategory;
-      return matchesSearch && matchesFilter;
-    }).toList();
-
-    return Container(
-      padding: const EdgeInsets.all(16.0),
+    return Padding(
+      padding: const EdgeInsets.all(18),
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchCtrl,
-                  onChanged: (v) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: "Search by material name...",
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              DropdownButton<String>(
-                hint: const Text("Category"),
-                value: _filterCategory,
-                items: ["Analgesic", "Antibiotic", "IV Fluids", "Supplements"]
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (v) => setState(() => _filterCategory = v),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton.icon(
-                onPressed: () => _openAddMaterialDialog(context),
-                icon: const Icon(Icons.add),
-                label: const Text("Add Material"),
-              ),
-            ],
-          ),
+          _buildToolbar(context, provider),
           const SizedBox(height: 16),
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
+            child: provider.loading
+                ? const Center(child: CircularProgressIndicator())
+                : provider.error != null
+                ? _buildErrorState(context, provider)
+                : _buildContent(context, provider, products),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context, ProductProvider provider) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _searchCtrl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'Search by product name, SKU, or storage location...',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: Theme.of(context).cardColor,
+              border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                color: Theme.of(context).cardColor,
-              ),
-              child: SingleChildScrollView(
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text("Material")),
-                    DataColumn(label: Text("Category")),
-                    DataColumn(label: Text("Quantity")),
-                    DataColumn(label: Text("Expiry Date")),
-                    DataColumn(label: Text("Actions")),
-                  ],
-                  rows: filtered.map((item) {
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(item["name"])),
-                        DataCell(Text(item["cat"])),
-                        DataCell(Text(item["qty"].toString())),
-                        DataCell(Text(item["expiry"])),
-                        DataCell(
-                          Row(
-                            children: [
-                              Tooltip(
-                                message: "Edit Material",
-                                child: IconButton(
-                                  icon: const Icon(Icons.edit),
-                                  onPressed: () {},
-                                ),
-                              ),
-                              Tooltip(
-                                message: "Update Expiry",
-                                child: IconButton(
-                                  icon: const Icon(Icons.change_circle),
-                                  color: Colors.blue,
-                                  onPressed: () =>
-                                      _openUpdateExpiry(context, item),
-                                ),
-                              ),
-                              Tooltip(
-                                message: "Delete",
-                                child: IconButton(
-                                  icon: const Icon(Icons.delete_forever),
-                                  color: Colors.red,
-                                  onPressed: () => _deleteMaterial(item),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
+                borderSide: BorderSide.none,
               ),
             ),
           ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _availabilityFilter,
+              items: const [
+                DropdownMenuItem(value: 'All', child: Text('All')),
+                DropdownMenuItem(value: 'Available', child: Text('Available')),
+                DropdownMenuItem(
+                  value: 'Unavailable',
+                  child: Text('Unavailable'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _availabilityFilter = value);
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          tooltip: 'Refresh products',
+          onPressed: provider.loadProducts,
+          icon: const Icon(Icons.refresh),
+        ),
+        if (AuthService.isWarehouseManager) ...[
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => _openProductDialog(context, provider),
+            icon: const Icon(Icons.add),
+            label: const Text('Add Product'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, ProductProvider provider) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 52),
+          const SizedBox(height: 12),
+          Text(
+            provider.error!,
+            style: const TextStyle(color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: provider.loadProducts,
+            child: const Text('Retry'),
+          ),
         ],
       ),
     );
   }
 
-  // Open the new multi-step Add Material Dialog
-  void _openAddMaterialDialog(BuildContext context) async {
-    final result = await showDialog<List<Map<String, dynamic>>>(
-      context: context,
-      builder: (ctx) => const AddMaterialDialog(),
-    );
-
-    if (result != null && result.isNotEmpty) {
-      setState(() {
-        for (var material in result) {
-          materials.add({
-            "name": material['name'],
-            "sku": material['serial'],
-            "lot": "LOT-NEW",
-            "location": "Shelf NEW",
-            "qty": int.tryParse(material['quantity']) ?? 0,
-            "expiry": material['expiry'],
-            "cat": "New Category",
-          });
-        }
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${result.length} material(s) added successfully'),
+  Widget _buildContent(
+    BuildContext context,
+    ProductProvider provider,
+    List<MaterialModel> products,
+  ) {
+    if (products.isEmpty) {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Text('No products found for the current filters.'),
         ),
       );
     }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+          child: DataTable(
+            headingRowHeight: 54,
+            dataRowMinHeight: 62,
+            dataRowMaxHeight: 62,
+            columns: const [
+              DataColumn(label: Text('Name')),
+              DataColumn(label: Text('Quantity')),
+              DataColumn(label: Text('Unit')),
+              DataColumn(label: Text('Availability')),
+              DataColumn(label: Text('Expiry Date')),
+              DataColumn(label: Text('Actions')),
+            ],
+            rows: products.map((product) {
+              return DataRow(
+                cells: [
+                  DataCell(_productSummary(product)),
+                  DataCell(Text(product.quantity.toString())),
+                  DataCell(Text(product.unit.isEmpty ? '-' : product.unit)),
+                  DataCell(_availabilityChip(product.isAvailable)),
+                  DataCell(Text(_formatDate(product.expiryDate))),
+                  DataCell(_buildActions(context, provider, product)),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
   }
 
-  // Delete material
-  void _deleteMaterial(Map<String, dynamic> item) {
-    showDialog(
+  Widget _productSummary(MaterialModel product) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(product.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(
+          'SKU: ${product.sku}',
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+      ],
+    );
+  }
+
+  Widget _availabilityChip(bool isAvailable) {
+    final color = isAvailable ? Colors.green : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Text(
+        isAvailable ? 'Available' : 'Unavailable',
+        style: TextStyle(color: color, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildActions(
+    BuildContext context,
+    ProductProvider provider,
+    MaterialModel product,
+  ) {
+    if (!AuthService.isWarehouseManager) {
+      return IconButton(
+        tooltip: 'View details',
+        onPressed: () => _showDetails(context, product),
+        icon: const Icon(Icons.visibility_outlined),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Edit product',
+          onPressed: () =>
+              _openProductDialog(context, provider, existingProduct: product),
+          icon: const Icon(Icons.edit_outlined),
+        ),
+        IconButton(
+          tooltip: 'Delete product',
+          onPressed: () => _confirmDelete(context, provider, product),
+          icon: const Icon(Icons.delete_outline),
+          color: Colors.red,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openProductDialog(
+    BuildContext context,
+    ProductProvider provider, {
+    MaterialModel? existingProduct,
+  }) async {
+    final payload = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Material'),
-        content: Text('Are you sure you want to delete "${item["name"]}"?'),
+      builder: (_) => AddMaterialDialog(initialProduct: existingProduct),
+    );
+
+    if (payload == null) {
+      return;
+    }
+
+    final error = existingProduct == null
+        ? await provider.addProduct(payload)
+        : await provider.updateProduct(existingProduct.id, payload);
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          existingProduct == null
+              ? 'Product added successfully.'
+              : 'Product updated successfully.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    ProductProvider provider,
+    MaterialModel product,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Product'),
+        content: Text('Are you sure you want to delete "${product.name}"?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              setState(() {
-                materials.remove(item);
-              });
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${item["name"]} deleted successfully')),
-              );
-            },
-            child: const Text('Delete'),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    final error = await provider.deleteProduct(product.id);
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? '${product.name} deleted successfully.'),
+        backgroundColor: error == null ? null : Colors.red,
+      ),
+    );
+  }
+
+  void _showDetails(BuildContext context, MaterialModel product) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(product.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _detailRow('SKU', product.sku),
+            _detailRow('Quantity', product.quantity.toString()),
+            _detailRow('Unit', product.unit),
+            _detailRow('Log Number', product.lot),
+            _detailRow('Storage', product.location),
+            _detailRow(
+              'Availability',
+              product.isAvailable ? 'Available' : 'Unavailable',
+            ),
+            _detailRow('Expiry', _formatDate(product.expiryDate)),
+            _detailRow('Category ID', product.categoryId.toString()),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
           ),
         ],
       ),
     );
   }
 
-  // Update expiry (keeping existing implementation)
-  void _openUpdateExpiry(BuildContext context, Map<String, dynamic> item) {
-    final TextEditingController newExpiryCtrl = TextEditingController();
-    final TextEditingController reasonCtrl = TextEditingController();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.all(40),
-        backgroundColor: isDark ? const Color(0xFF1B2430) : Colors.white,
-        child: Container(
-          width: 650,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Update Expiry Date",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[800] : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Material Name:",
-                          style: TextStyle(
-                            color: isDark ? Colors.grey[400] : Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "SKU:",
-                          style: TextStyle(
-                            color: isDark ? Colors.grey[400] : Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Current Expiration Date:",
-                          style: TextStyle(
-                            color: isDark ? Colors.grey[400] : Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          item["name"],
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item["sku"],
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item["expiry"],
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              Text(
-                "New Expiration Date",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white : Colors.black,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: newExpiryCtrl,
-                readOnly: true,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                decoration: InputDecoration(
-                  hintText: "Select new date...",
-                  hintStyle: TextStyle(
-                    color: isDark ? Colors.white38 : Colors.black38,
-                  ),
-                  suffixIcon: const Icon(Icons.calendar_today),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF2A3441)
-                      : Colors.grey[200],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) {
-                    newExpiryCtrl.text =
-                        "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-                  }
-                },
-              ),
-              const SizedBox(height: 20),
-              Text(
-                "Reason for Update",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white : Colors.black,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: reasonCtrl,
-                maxLines: 2,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                decoration: InputDecoration(
-                  hintText: "Enter reason...",
-                  hintStyle: TextStyle(
-                    color: isDark ? Colors.white38 : Colors.black38,
-                  ),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF2A3441)
-                      : Colors.grey[200],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text(
-                      "Cancel",
-                      style: TextStyle(
-                        color: isDark ? Colors.white70 : Colors.grey,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 12,
-                      ),
-                    ),
-                    onPressed: () {
-                      if (newExpiryCtrl.text.isNotEmpty) {
-                        item["expiry"] = newExpiryCtrl.text;
-                        setState(() {});
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Expiry date updated for ${item["name"]}',
-                            ),
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please select a new expiry date'),
-                          ),
-                        );
-                      }
-                    },
-                    child: const Text("Update Expiry Date"),
-                  ),
-                ],
-              ),
-            ],
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
-        ),
+          Expanded(child: Text(value.isEmpty ? '-' : value)),
+        ],
       ),
     );
+  }
+
+  bool _matchesFilters(MaterialModel product) {
+    final query = _searchCtrl.text.trim().toLowerCase();
+    final matchesSearch =
+        query.isEmpty ||
+        product.name.toLowerCase().contains(query) ||
+        product.sku.toLowerCase().contains(query) ||
+        product.location.toLowerCase().contains(query);
+
+    final matchesAvailability = switch (_availabilityFilter) {
+      'Available' => product.isAvailable,
+      'Unavailable' => !product.isAvailable,
+      _ => true,
+    };
+
+    return matchesSearch && matchesAvailability;
+  }
+
+  String _formatDate(String raw) {
+    try {
+      final date = DateTime.parse(raw).toLocal();
+      final month = date.month.toString().padLeft(2, '0');
+      final day = date.day.toString().padLeft(2, '0');
+      return '${date.year}-$month-$day';
+    } catch (_) {
+      return raw.isEmpty ? '-' : raw;
+    }
   }
 }

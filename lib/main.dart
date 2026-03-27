@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:graduation_project/Models/ProductProvider.dart';
+import 'package:graduation_project/Models/UserRoleModel.dart';
 import 'package:graduation_project/views/LoginView.dart';
 
 const String backgroundImagePath =
@@ -6,7 +8,9 @@ const String backgroundImagePath =
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AuthService.initialize();
   runApp(const PharmacyLoginApp());
 }
 
@@ -15,6 +19,6 @@ class PharmacyLoginApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Loginview();
+    return ProductProviderScope(child: const Loginview());
   }
 }

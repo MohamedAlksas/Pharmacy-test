@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:graduation_project/Models/UserRoleModel.dart';
 
 class UserInfoPage extends StatefulWidget {
   const UserInfoPage({super.key});
@@ -23,10 +24,13 @@ class _UserInfoPageState extends State<UserInfoPage> {
   }
 
   void _loadUserData() {
-    _nameController.text = 'Ahmed Mohamed';
-    _emailController.text = 'ahmed@pharmawarehouse.com';
-    _phoneController.text = '+20 123 456 7890';
-    _roleController.text = 'Warehouse Manager';
+    final user = AuthService.currentUser;
+    _nameController.text = user?.fullName ?? '';
+    _emailController.text = user?.email ?? '';
+    _phoneController.text = user?.phoneNumber ?? '';
+    _roleController.text = AuthService.isWarehouseManager
+        ? 'Warehouse Manager'
+        : 'Supervisor';
   }
 
   @override
@@ -38,9 +42,7 @@ class _UserInfoPageState extends State<UserInfoPage> {
     super.dispose();
   }
 
-  void _toggleEdit() {
-    setState(() => _isEditing = !_isEditing);
-  }
+  void _toggleEdit() => setState(() => _isEditing = !_isEditing);
 
   void _saveChanges() {
     if (_formKey.currentState!.validate()) {
@@ -54,7 +56,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF0A1A1F) : const Color(0xFFF5F9FA);
+    final bgColor =
+        isDark ? const Color(0xFF0A1A1F) : const Color(0xFFF5F9FA);
     final cardColor = isDark ? const Color(0xFF1A2F35) : Colors.white;
 
     return Scaffold(
@@ -66,14 +69,11 @@ class _UserInfoPageState extends State<UserInfoPage> {
           children: [
             Row(
               children: [
-                Text(
-                  'User Profile',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
+                Text('User Profile',
+                    style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87)),
                 const Spacer(),
                 if (!_isEditing)
                   ElevatedButton.icon(
@@ -81,9 +81,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
                     icon: const Icon(Icons.edit),
                     label: const Text('Edit Profile'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                    ),
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white),
                   ),
               ],
             ),
@@ -94,11 +93,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.blueAccent.withOpacity(0.2),
-                    child: const Icon(
-                      Icons.person,
-                      size: 60,
-                      color: Colors.blueAccent,
-                    ),
+                    child: const Icon(Icons.person,
+                        size: 60, color: Colors.blueAccent),
                   ),
                   const SizedBox(height: 16),
                   if (!_isEditing)
@@ -118,10 +114,9 @@ class _UserInfoPageState extends State<UserInfoPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2))
                 ],
               ),
               child: Form(
@@ -129,48 +124,41 @@ class _UserInfoPageState extends State<UserInfoPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Personal Information',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
+                    Text('Personal Information',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87)),
                     const SizedBox(height: 24),
                     _buildTextField(
-                      controller: _nameController,
-                      label: 'Full Name',
-                      icon: Icons.person_outline,
-                      enabled: _isEditing,
-                      isDark: isDark,
-                    ),
+                        controller: _nameController,
+                        label: 'Full Name',
+                        icon: Icons.person_outline,
+                        enabled: _isEditing,
+                        isDark: isDark),
                     const SizedBox(height: 16),
                     _buildTextField(
-                      controller: _emailController,
-                      label: 'Email',
-                      icon: Icons.email_outlined,
-                      enabled: _isEditing,
-                      isDark: isDark,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
+                        controller: _emailController,
+                        label: 'Email',
+                        icon: Icons.email_outlined,
+                        enabled: _isEditing,
+                        isDark: isDark,
+                        keyboardType: TextInputType.emailAddress),
                     const SizedBox(height: 16),
                     _buildTextField(
-                      controller: _phoneController,
-                      label: 'Phone Number',
-                      icon: Icons.phone_outlined,
-                      enabled: _isEditing,
-                      isDark: isDark,
-                      keyboardType: TextInputType.phone,
-                    ),
+                        controller: _phoneController,
+                        label: 'Phone Number',
+                        icon: Icons.phone_outlined,
+                        enabled: _isEditing,
+                        isDark: isDark,
+                        keyboardType: TextInputType.phone),
                     const SizedBox(height: 16),
                     _buildTextField(
-                      controller: _roleController,
-                      label: 'Role',
-                      icon: Icons.work_outline,
-                      enabled: false,
-                      isDark: isDark,
-                    ),
+                        controller: _roleController,
+                        label: 'Role',
+                        icon: Icons.work_outline,
+                        enabled: false,
+                        isDark: isDark),
                   ],
                 ),
               ),
@@ -186,8 +174,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
                         _toggleEdit();
                       },
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 16)),
                       child: const Text('Cancel'),
                     ),
                   ),
@@ -196,10 +184,10 @@ class _UserInfoPageState extends State<UserInfoPage> {
                     child: ElevatedButton(
                       onPressed: _saveChanges,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
+                          backgroundColor: Colors.blueAccent,
+                          foregroundColor: Colors.white,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 16)),
                       child: const Text('Save Changes'),
                     ),
                   ),
@@ -214,49 +202,39 @@ class _UserInfoPageState extends State<UserInfoPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2))
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Account Settings',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
+                  Text('Account Settings',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87)),
                   const SizedBox(height: 16),
                   ListTile(
-                    leading: const Icon(
-                      Icons.lock_outline,
-                      color: Colors.blueAccent,
-                    ),
+                    leading: const Icon(Icons.lock_outline,
+                        color: Colors.blueAccent),
                     title: const Text('Change Password'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {},
                   ),
                   const Divider(),
                   ListTile(
-                    leading: const Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.blueAccent,
-                    ),
+                    leading: const Icon(Icons.notifications_outlined,
+                        color: Colors.blueAccent),
                     title: const Text('Notifications'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {},
                   ),
                   const Divider(),
                   ListTile(
-                    leading: const Icon(
-                      Icons.security_outlined,
-                      color: Colors.blueAccent,
-                    ),
+                    leading: const Icon(Icons.security_outlined,
+                        color: Colors.blueAccent),
                     title: const Text('Privacy & Security'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {},
@@ -282,22 +260,22 @@ class _UserInfoPageState extends State<UserInfoPage> {
       controller: controller,
       enabled: enabled,
       keyboardType: keyboardType,
-      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+      style:
+          TextStyle(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: Colors.blueAccent),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
-            color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-          ),
+              color: isDark ? Colors.grey[700]! : Colors.grey[300]!),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
-            color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
-          ),
+              color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
         ),
         filled: !enabled,
         fillColor: enabled
@@ -305,9 +283,7 @@ class _UserInfoPageState extends State<UserInfoPage> {
             : (isDark ? Colors.grey[850] : Colors.grey[100]),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter $label';
-        }
+        if (value == null || value.isEmpty) return 'Please enter $label';
         return null;
       },
     );

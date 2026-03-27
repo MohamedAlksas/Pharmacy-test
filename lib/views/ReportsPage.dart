@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:graduation_project/Services/MaterialSerivce.dart';
+import 'package:graduation_project/Models/ProductProvider.dart';
 import 'package:graduation_project/Services/alertService.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
+import 'package:graduation_project/Services/MaterialSerivce.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -18,11 +19,7 @@ class _ReportsPageState extends State<ReportsPage> {
   String _selectedCategory = 'All Categories';
   String _selectedStatus = 'All Statuses';
 
-  @override
-  void initState() {
-    super.initState();
-    AlertService.initializeAlerts();
-  }
+  bool get isSupervisor => AuthService.isSupervisor;
 
   @override
   void dispose() {
@@ -30,54 +27,10 @@ class _ReportsPageState extends State<ReportsPage> {
     super.dispose();
   }
 
-  // Check if user is supervisor
-  bool get isSupervisor => AuthService.isSupervisor;
-
-  Future<void> _printReport() async {
+  Future<void> _printReport(ProductProvider provider) async {
     try {
-      // Check if printing is available
-      // final info = await Printing.info();
-
-      // if (!info.canPrint && !info.canShare) {
-      //   if (mounted) {
-      //     _showErrorDialog('Printing is not available on this device.');
-      //   }
-      //   return;
-      // }
-
       final pdf = pw.Document();
-
-      // Sample data for PDF
-      final displayMaterials = [
-        {
-          'name': 'Sterile Gauze Pads',
-          'category': 'Medical Supplies',
-          'quantity': 350,
-          'expiry': '2025-12-31',
-          'status': 'In Stock',
-        },
-        {
-          'name': 'Latex Gloves (M)',
-          'category': 'Protective Gear',
-          'quantity': 45,
-          'expiry': '2024-08-15',
-          'status': 'Expiring Soon',
-        },
-        {
-          'name': 'Saline Solution',
-          'category': 'Pharmaceuticals',
-          'quantity': 0,
-          'expiry': '2024-05-20',
-          'status': 'Out of Stock',
-        },
-        {
-          'name': 'Syringes (10ml)',
-          'category': 'Medical Supplies',
-          'quantity': 800,
-          'expiry': '2026-02-01',
-          'status': 'In Stock',
-        },
-      ];
+      final materials = provider.products;
 
       pdf.addPage(
         pw.Page(
@@ -86,62 +39,53 @@ class _ReportsPageState extends State<ReportsPage> {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Header
-                pw.Text(
-                  'Materials Inventory Report',
-                  style: pw.TextStyle(
-                    fontSize: 24,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
+                pw.Text('Materials Inventory Report',
+                    style: pw.TextStyle(
+                        fontSize: 24, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 10),
                 pw.Text(
-                  'Generated: ${DateTime.now().toString().substring(0, 16)}',
-                  style: const pw.TextStyle(fontSize: 12),
-                ),
+                    'Generated: ${DateTime.now().toString().substring(0, 16)}',
+                    style: const pw.TextStyle(fontSize: 12)),
                 pw.SizedBox(height: 20),
-
-                // KPI Summary
                 pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildPdfKpi('Total Materials', '1250'),
-                    _buildPdfKpi('Total Categories', '15'),
-                    _buildPdfKpi('Expiring Soon', '24'),
-                    _buildPdfKpi('Out of Stock', '8'),
-                  ],
-                ),
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildPdfKpi(
+                          'Total Materials', materials.length.toString()),
+                      _buildPdfKpi('Expiring Soon',
+                          provider.expiringSoonCount.toString()),
+                      _buildPdfKpi(
+                          'Low Stock', provider.lowStockCount.toString()),
+                      _buildPdfKpi(
+                          'Expired', provider.expiredCount.toString()),
+                    ]),
                 pw.SizedBox(height: 30),
-
-                // Materials Table
-                pw.Text(
-                  'Materials List',
-                  style: pw.TextStyle(
-                    fontSize: 18,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
+                pw.Text('Materials List',
+                    style: pw.TextStyle(
+                        fontSize: 18, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 10),
                 pw.Table.fromTextArray(
-                  headers: ['Name', 'Category', 'Quantity', 'Expiry', 'Status'],
-                  data: displayMaterials.map((material) {
+                  headers: [
+                    'Name',
+                    'Category',
+                    'Quantity',
+                    'Expiry',
+                    'Status'
+                  ],
+                  data: materials.map((m) {
                     return [
-                      material['name'],
-                      material['category'],
-                      material['quantity'].toString(),
-                      material['expiry'],
-                      material['status'],
+                      m.name,
+                      m.category,
+                      m.quantity.toString(),
+                      m.expiryDate,
+                      MaterialService.getMaterialStatus(m),
                     ];
                   }).toList(),
                   headerStyle: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 10,
-                  ),
+                      fontWeight: pw.FontWeight.bold, fontSize: 10),
                   cellStyle: const pw.TextStyle(fontSize: 9),
-                  cellAlignment: pw.Alignment.centerLeft,
-                  headerDecoration: const pw.BoxDecoration(
-                    color: PdfColors.grey300,
-                  ),
+                  headerDecoration:
+                      const pw.BoxDecoration(color: PdfColors.grey300),
                 ),
               ],
             );
@@ -149,14 +93,9 @@ class _ReportsPageState extends State<ReportsPage> {
         ),
       );
 
-      // Show options dialog
-      if (mounted) {
-        _showPrintOptionsDialog(pdf);
-      }
+      if (mounted) _showPrintOptionsDialog(pdf);
     } catch (e) {
-      if (mounted) {
-        _showErrorDialog('Error generating report: ${e.toString()}');
-      }
+      if (mounted) _showErrorDialog('Error generating report: $e');
     }
   }
 
@@ -165,28 +104,26 @@ class _ReportsPageState extends State<ReportsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Export Report'),
-        content: const Text('Choose how you would like to export the report:'),
+        content:
+            const Text('Choose how you would like to export the report:'),
         actions: [
           TextButton.icon(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _printPdf(pdf);
-            },
-            icon: const Icon(Icons.print),
-            label: const Text('Print'),
-          ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _printPdf(pdf);
+              },
+              icon: const Icon(Icons.print),
+              label: const Text('Print')),
           TextButton.icon(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _sharePdf(pdf);
-            },
-            icon: const Icon(Icons.share),
-            label: const Text('Share'),
-          ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _sharePdf(pdf);
+              },
+              icon: const Icon(Icons.share),
+              label: const Text('Share')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
         ],
       ),
     );
@@ -195,35 +132,20 @@ class _ReportsPageState extends State<ReportsPage> {
   Future<void> _printPdf(pw.Document pdf) async {
     try {
       await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report sent to printer'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+          onLayout: (PdfPageFormat fmt) async => pdf.save());
     } catch (e) {
-      if (mounted) {
-        _showErrorDialog('Error printing: ${e.toString()}');
-      }
+      if (mounted) _showErrorDialog('Error printing: $e');
     }
   }
 
   Future<void> _sharePdf(pw.Document pdf) async {
     try {
       await Printing.sharePdf(
-        bytes: await pdf.save(),
-        filename:
-            'inventory_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
-      );
+          bytes: await pdf.save(),
+          filename:
+              'inventory_report_${DateTime.now().millisecondsSinceEpoch}.pdf');
     } catch (e) {
-      if (mounted) {
-        _showErrorDialog('Error sharing PDF: ${e.toString()}');
-      }
+      if (mounted) _showErrorDialog('Error sharing PDF: $e');
     }
   }
 
@@ -235,9 +157,8 @@ class _ReportsPageState extends State<ReportsPage> {
         content: Text(message),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'))
         ],
       ),
     );
@@ -247,65 +168,45 @@ class _ReportsPageState extends State<ReportsPage> {
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey),
-        borderRadius: pw.BorderRadius.circular(5),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(title, style: const pw.TextStyle(fontSize: 10)),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            value,
-            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-          ),
-        ],
-      ),
+          border: pw.Border.all(color: PdfColors.grey),
+          borderRadius: pw.BorderRadius.circular(5)),
+      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+        pw.Text(title, style: const pw.TextStyle(fontSize: 10)),
+        pw.SizedBox(height: 5),
+        pw.Text(value,
+            style: pw.TextStyle(
+                fontSize: 16, fontWeight: pw.FontWeight.bold)),
+      ]),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final materials = MaterialService.getAllMaterials();
+    final provider = ProductProvider.of(context);
+    final allMaterials = provider.products;
 
-    // Calculate metrics
-    final totalMaterials = 1250;
-    final totalCategories = 15;
-    final expiringSoon = 24;
-    final outOfStock = 8;
-
-    // Sample materials for display
-    final displayMaterials = [
-      {
-        'name': 'Sterile Gauze Pads',
-        'category': 'Medical Supplies',
-        'quantity': 350,
-        'expiry': '2025-12-31',
-        'status': 'In Stock',
-      },
-      {
-        'name': 'Latex Gloves (M)',
-        'category': 'Protective Gear',
-        'quantity': 45,
-        'expiry': '2024-08-15',
-        'status': 'Expiring Soon',
-      },
-      {
-        'name': 'Saline Solution',
-        'category': 'Pharmaceuticals',
-        'quantity': 0,
-        'expiry': '2024-05-20',
-        'status': 'Out of Stock',
-      },
-      {
-        'name': 'Syringes (10ml)',
-        'category': 'Medical Supplies',
-        'quantity': 800,
-        'expiry': '2026-02-01',
-        'status': 'In Stock',
-      },
+    // Build unique category list
+    final categories =
+        allMaterials.map((m) => m.category).toSet().toList()..sort();
+    final categoryItems = [
+      'All Categories',
+      ...categories,
     ];
+
+    // Filter
+    final filtered = allMaterials.where((m) {
+      final matchSearch = m.name
+          .toLowerCase()
+          .contains(_searchCtrl.text.toLowerCase());
+      final matchCat = _selectedCategory == 'All Categories' ||
+          m.category == _selectedCategory;
+      final status = MaterialService.getMaterialStatus(m);
+      final matchStatus =
+          _selectedStatus == 'All Statuses' || status == _selectedStatus;
+      return matchSearch && matchCat && matchStatus;
+    }).toList();
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -313,138 +214,115 @@ class _ReportsPageState extends State<ReportsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title Row with Print Button (only for supervisor)
+          // Title Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Reports & Analytics',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black,
-                ),
-              ),
-              // Print button - only visible for supervisors
+              Text('Reports & Analytics',
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black)),
               if (isSupervisor)
                 ElevatedButton.icon(
-                  onPressed: _printReport,
+                  onPressed: () => _printReport(provider),
                   icon: const Icon(Icons.print, size: 18),
                   label: const Text('Export Report'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D6EFD),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
+                        horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
             ],
           ),
           const SizedBox(height: 20),
 
-          // KPI Cards Row
-          Row(
-            children: [
-              Expanded(
-                child: _buildKpiCard(
-                  'Total Materials',
-                  totalMaterials.toString(),
-                  isDark,
-                  null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildKpiCard(
-                  'Total Categories',
-                  totalCategories.toString(),
-                  isDark,
-                  null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildKpiCard(
-                  'Expiring Soon',
-                  expiringSoon.toString(),
-                  isDark,
-                  const Color(0xFFFFA500),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildKpiCard(
-                  'Out of Stock',
-                  outOfStock.toString(),
-                  isDark,
-                  const Color(0xFFDC3545),
-                ),
-              ),
-            ],
-          ),
+          // KPI Cards – live from provider
+          if (provider.loading)
+            const Center(child: CircularProgressIndicator())
+          else
+            Row(
+              children: [
+                Expanded(
+                    child: _buildKpiCard('Total Materials',
+                        provider.totalProducts.toString(), isDark, null)),
+                const SizedBox(width: 16),
+                Expanded(
+                    child: _buildKpiCard(
+                        'Total Categories',
+                        categories.length.toString(),
+                        isDark,
+                        null)),
+                const SizedBox(width: 16),
+                Expanded(
+                    child: _buildKpiCard(
+                        'Expiring Soon',
+                        provider.expiringSoonCount.toString(),
+                        isDark,
+                        const Color(0xFFFFA500))),
+                const SizedBox(width: 16),
+                Expanded(
+                    child: _buildKpiCard(
+                        'Low Stock',
+                        provider.lowStockCount.toString(),
+                        isDark,
+                        const Color(0xFFDC3545))),
+              ],
+            ),
           const SizedBox(height: 20),
 
-          // Search and Filters Row
+          // Search and Filters
           Row(
             children: [
               Expanded(
                 flex: 3,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1A2332) : Colors.white,
+                    color:
+                        isDark ? const Color(0xFF1A2332) : Colors.white,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: TextField(
                     controller: _searchCtrl,
                     onChanged: (value) => setState(() {}),
                     style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                      fontSize: 14,
-                    ),
+                        color: isDark ? Colors.white : Colors.black,
+                        fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Search materials...',
                       hintStyle: TextStyle(
-                        color: isDark ? Colors.white38 : Colors.black38,
-                        fontSize: 14,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: isDark ? Colors.white54 : Colors.black54,
-                        size: 20,
-                      ),
+                          color: isDark ? Colors.white38 : Colors.black38,
+                          fontSize: 14),
+                      prefixIcon: Icon(Icons.search,
+                          color:
+                              isDark ? Colors.white54 : Colors.black54,
+                          size: 20),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                          horizontal: 16, vertical: 12),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              _buildDropdownButton(
-                isDark,
-                _selectedCategory,
-                [
-                  'All Categories',
-                  'Medical Supplies',
-                  'Protective Gear',
-                  'Pharmaceuticals',
-                ],
-                (value) => setState(() => _selectedCategory = value!),
-              ),
+              _buildDropdownButton(isDark, _selectedCategory, categoryItems,
+                  (v) => setState(() => _selectedCategory = v!)),
               const SizedBox(width: 12),
               _buildDropdownButton(
-                isDark,
-                _selectedStatus,
-                ['All Statuses', 'In Stock', 'Expiring Soon', 'Out of Stock'],
-                (value) => setState(() => _selectedStatus = value!),
-              ),
+                  isDark,
+                  _selectedStatus,
+                  [
+                    'All Statuses',
+                    'Good',
+                    'Expiring Soon',
+                    'Expired',
+                    'Low Stock'
+                  ],
+                  (v) => setState(() => _selectedStatus = v!)),
             ],
           ),
           const SizedBox(height: 20),
@@ -456,183 +334,106 @@ class _ReportsPageState extends State<ReportsPage> {
                 color: isDark ? const Color(0xFF1A2332) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF2A3F5F)
-                      : Colors.grey.shade200,
-                  width: 1,
-                ),
+                    color: isDark
+                        ? const Color(0xFF2A3F5F)
+                        : Colors.grey.shade200),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Text(
-                      'Materials',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black,
-                      ),
-                    ),
+                    child: Text('Materials',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                isDark ? Colors.white : Colors.black)),
                   ),
-                  // Table Header
+                  // Header
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
+                        horizontal: 20, vertical: 12),
                     decoration: BoxDecoration(
                       color: isDark
                           ? const Color(0xFF233044)
                           : const Color(0xFFF8F9FA),
                       border: Border(
                         top: BorderSide(
-                          color: isDark
-                              ? const Color(0xFF2A3F5F)
-                              : Colors.grey.shade200,
-                        ),
+                            color: isDark
+                                ? const Color(0xFF2A3F5F)
+                                : Colors.grey.shade200),
                         bottom: BorderSide(
-                          color: isDark
-                              ? const Color(0xFF2A3F5F)
-                              : Colors.grey.shade200,
-                        ),
+                            color: isDark
+                                ? const Color(0xFF2A3F5F)
+                                : Colors.grey.shade200),
                       ),
                     ),
                     child: Row(
                       children: [
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            'Name',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            'Category',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Text(
-                            'Quantity',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            'Expiry Date',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Text(
-                            'Status',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                        ),
+                        _headerCell('Name', flex: 3, isDark: isDark),
+                        _headerCell('Category', flex: 2, isDark: isDark),
+                        _headerCell('Quantity', flex: 1, isDark: isDark),
+                        _headerCell('Expiry Date', flex: 2, isDark: isDark),
+                        _headerCell('Status', flex: 1, isDark: isDark),
                       ],
                     ),
                   ),
-                  // Table Rows
+                  // Rows
                   Expanded(
                     child: ListView.builder(
-                      itemCount: displayMaterials.length,
+                      itemCount: filtered.length,
                       itemBuilder: (context, index) {
-                        final material = displayMaterials[index];
+                        final m = filtered[index];
+                        final status = MaterialService.getMaterialStatus(m);
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
+                              horizontal: 20, vertical: 16),
                           decoration: BoxDecoration(
                             border: Border(
                               bottom: BorderSide(
-                                color: isDark
-                                    ? const Color(0xFF2A3F5F)
-                                    : Colors.grey.shade200,
-                                width: 1,
-                              ),
+                                  color: isDark
+                                      ? const Color(0xFF2A3F5F)
+                                      : Colors.grey.shade200),
                             ),
                           ),
                           child: Row(
                             children: [
                               Expanded(
-                                flex: 3,
-                                child: Text(
-                                  material['name'] as String,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isDark ? Colors.white : Colors.black,
-                                  ),
-                                ),
-                              ),
+                                  flex: 3,
+                                  child: Text(m.name,
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black))),
                               Expanded(
-                                flex: 2,
-                                child: Text(
-                                  material['category'] as String,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isDark
-                                        ? Colors.white60
-                                        : Colors.black54,
-                                  ),
-                                ),
-                              ),
+                                  flex: 2,
+                                  child: Text(m.category,
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: isDark
+                                              ? Colors.white60
+                                              : Colors.black54))),
                               Expanded(
-                                flex: 1,
-                                child: Text(
-                                  material['quantity'].toString(),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isDark ? Colors.white : Colors.black,
-                                  ),
-                                ),
-                              ),
+                                  flex: 1,
+                                  child: Text(m.quantity.toString(),
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black))),
                               Expanded(
-                                flex: 2,
-                                child: Text(
-                                  material['expiry'] as String,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isDark
-                                        ? Colors.white60
-                                        : Colors.black54,
-                                  ),
-                                ),
-                              ),
+                                  flex: 2,
+                                  child: Text(m.expiryDate,
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: isDark
+                                              ? Colors.white60
+                                              : Colors.black54))),
                               Expanded(
-                                flex: 1,
-                                child: _buildStatusBadge(
-                                  material['status'] as String,
-                                  isDark,
-                                ),
-                              ),
+                                  flex: 1,
+                                  child: _buildStatusBadge(status, isDark)),
                             ],
                           ),
                         );
@@ -645,287 +446,136 @@ class _ReportsPageState extends State<ReportsPage> {
           ),
           const SizedBox(height: 20),
 
-          // Bottom Section: Stock Transactions and Alerts
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Stock Transactions
-              Expanded(
-                child: Container(
-                  height: 280,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1A2332) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark
-                          ? const Color(0xFF2A3F5F)
-                          : Colors.grey.shade200,
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          'Stock Transactions',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: Text(
-                                'Material',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? Colors.white60
-                                      : Colors.black54,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                'Type',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? Colors.white60
-                                      : Colors.black54,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                'Qty',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? Colors.white60
-                                      : Colors.black54,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                'Date',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? Colors.white60
-                                      : Colors.black54,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          children: [
-                            _buildTransactionRow(
-                              'Syringes',
-                              'IN',
-                              '+200',
-                              '1h ago',
-                              isDark,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildTransactionRow(
-                              'Gauze Pads',
-                              'OUT',
-                              '-50',
-                              '3h ago',
-                              isDark,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildTransactionRow(
-                              'Latex Gloves',
-                              'IN',
-                              '+100',
-                              'Yesterday',
-                              isDark,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildTransactionRow(
-                              'Saline Solution',
-                              'IN',
-                              '+20',
-                              '2 days ago',
-                              isDark,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+          // Bottom: Alerts panel
+          Container(
+            height: 280,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1A2332) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF2A3F5F)
+                      : Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text('Alerts',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black)),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20),
+                    children:
+                        AlertService.getAllAlerts().take(5).map((alert) {
+                      Color color;
+                      IconData icon;
+                      switch (alert.alertType) {
+                        case 'expired':
+                          color = const Color(0xFFDC3545);
+                          icon = Icons.error_outline;
+                          break;
+                        case 'expiring_soon':
+                          color = const Color(0xFFFFA500);
+                          icon = Icons.warning_amber_rounded;
+                          break;
+                        default:
+                          color = const Color(0xFF0D6EFD);
+                          icon = Icons.inventory_2_outlined;
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildAlertItem(
+                            isDark,
+                            alert.material?.name ?? 'Alert',
+                            alert.message,
+                            'Created: ${alert.createdAt.toLocal().toString().substring(0, 16)}',
+                            color,
+                            icon),
+                      );
+                    }).toList(),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-
-              // Alerts
-              Expanded(
-                child: Container(
-                  height: 280,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1A2332) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark
-                          ? const Color(0xFF2A3F5F)
-                          : Colors.grey.shade200,
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          'Alerts',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          children: [
-                            _buildAlertItem(
-                              isDark,
-                              'Material Expired',
-                              'Saline Solution has expired.',
-                              'Created: 2024-05-21 09:00',
-                              const Color(0xFFDC3545),
-                              Icons.error_outline,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildAlertItem(
-                              isDark,
-                              'Low Stock Warning',
-                              'Latex Gloves (M) quantity is low (45 left).',
-                              'Created: 2024-05-20 14:30',
-                              const Color(0xFFFFA500),
-                              Icons.warning_amber_rounded,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildAlertItem(
-                              isDark,
-                              'Reorder Suggestion',
-                              'Consider reordering Sterile Gauze Pads.',
-                              'Created: 2024-05-18 11:00',
-                              const Color(0xFF0D6EFD),
-                              Icons.info_outline,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  Widget _headerCell(String text, {required int flex, required bool isDark}) {
+    return Expanded(
+      flex: flex,
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : Colors.black87)),
+    );
+  }
+
   Widget _buildKpiCard(
-    String title,
-    String value,
-    bool isDark,
-    Color? highlightColor,
-  ) {
+      String title, String value, bool isDark, Color? highlightColor) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A2332) : Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color:
-              highlightColor?.withOpacity(0.3) ??
-              (isDark ? const Color(0xFF2A3F5F) : Colors.grey.shade200),
-          width: 1,
-        ),
+            color: highlightColor?.withOpacity(0.3) ??
+                (isDark
+                    ? const Color(0xFF2A3F5F)
+                    : Colors.grey.shade200)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? Colors.white60 : Colors.black54,
-            ),
-          ),
+          Text(title,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white60 : Colors.black54)),
           const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: highlightColor ?? (isDark ? Colors.white : Colors.black),
-            ),
-          ),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: highlightColor ??
+                      (isDark ? Colors.white : Colors.black))),
         ],
       ),
     );
   }
 
-  Widget _buildDropdownButton(
-    bool isDark,
-    String value,
-    List<String> items,
-    void Function(String?) onChanged,
-  ) {
+  Widget _buildDropdownButton(bool isDark, String value, List<String> items,
+      void Function(String?) onChanged) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A2332) : Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isDark ? const Color(0xFF2A3F5F) : Colors.grey.shade300,
-        ),
+            color:
+                isDark ? const Color(0xFF2A3F5F) : Colors.grey.shade300),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
-          dropdownColor: isDark ? const Color(0xFF1A2332) : Colors.white,
-          icon: Icon(
-            Icons.keyboard_arrow_down,
-            color: isDark ? Colors.white70 : Colors.black54,
-            size: 20,
-          ),
+          value: items.contains(value) ? value : items.first,
+          dropdownColor:
+              isDark ? const Color(0xFF1A2332) : Colors.white,
+          icon: Icon(Icons.keyboard_arrow_down,
+              color: isDark ? Colors.white70 : Colors.black54, size: 20),
           style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
-            fontSize: 13,
-          ),
-          items: items.map((item) {
-            return DropdownMenuItem(value: item, child: Text(item));
-          }).toList(),
+              color: isDark ? Colors.white : Colors.black, fontSize: 13),
+          items: items
+              .map((i) => DropdownMenuItem(value: i, child: Text(i)))
+              .toList(),
           onChanged: onChanged,
         ),
       ),
@@ -933,117 +583,40 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _buildStatusBadge(String status, bool isDark) {
-    Color backgroundColor;
-    Color textColor;
-
+    Color bg, text;
     switch (status) {
-      case 'In Stock':
-        backgroundColor = const Color(0xFF28A745).withOpacity(0.15);
-        textColor = const Color(0xFF28A745);
+      case 'Good':
+        bg = const Color(0xFF28A745).withOpacity(0.15);
+        text = const Color(0xFF28A745);
         break;
       case 'Expiring Soon':
-        backgroundColor = const Color(0xFFFFA500).withOpacity(0.15);
-        textColor = const Color(0xFFFFA500);
+        bg = const Color(0xFFFFA500).withOpacity(0.15);
+        text = const Color(0xFFFFA500);
         break;
-      case 'Out of Stock':
-        backgroundColor = const Color(0xFFDC3545).withOpacity(0.15);
-        textColor = const Color(0xFFDC3545);
+      case 'Expired':
+        bg = const Color(0xFFDC3545).withOpacity(0.15);
+        text = const Color(0xFFDC3545);
+        break;
+      case 'Low Stock':
+        bg = Colors.orange.withOpacity(0.15);
+        text = Colors.orange;
         break;
       default:
-        backgroundColor = Colors.grey.withOpacity(0.15);
-        textColor = Colors.grey;
+        bg = Colors.grey.withOpacity(0.15);
+        text = Colors.grey;
     }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-          fontSize: 11,
-        ),
-      ),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(4)),
+      child: Text(status,
+          style: TextStyle(
+              color: text, fontWeight: FontWeight.w600, fontSize: 11)),
     );
   }
 
-  Widget _buildTransactionRow(
-    String material,
-    String type,
-    String qty,
-    String date,
-    bool isDark,
-  ) {
-    final isIn = type == 'IN';
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: Text(
-            material,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.white : Colors.black,
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 1,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: isIn
-                  ? const Color(0xFF28A745).withOpacity(0.15)
-                  : const Color(0xFFDC3545).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(
-              type,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: isIn ? const Color(0xFF28A745) : const Color(0xFFDC3545),
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 1,
-          child: Text(
-            qty,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.white70 : Colors.black54,
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 2,
-          child: Text(
-            date,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? Colors.white60 : Colors.black45,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAlertItem(
-    bool isDark,
-    String title,
-    String message,
-    String timestamp,
-    Color color,
-    IconData icon,
-  ) {
+  Widget _buildAlertItem(bool isDark, String title, String message,
+      String timestamp, Color color, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1060,24 +633,19 @@ class _ReportsPageState extends State<ReportsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                    fontSize: 13,
-                  ),
-                ),
+                Text(title,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                        fontSize: 13)),
                 const SizedBox(height: 4),
-                Text(message, style: TextStyle(color: color, fontSize: 12)),
+                Text(message,
+                    style: TextStyle(color: color, fontSize: 12)),
                 const SizedBox(height: 4),
-                Text(
-                  timestamp,
-                  style: TextStyle(
-                    color: isDark ? Colors.white38 : Colors.black38,
-                    fontSize: 10,
-                  ),
-                ),
+                Text(timestamp,
+                    style: TextStyle(
+                        color: isDark ? Colors.white38 : Colors.black38,
+                        fontSize: 10)),
               ],
             ),
           ),

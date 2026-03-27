@@ -1,183 +1,403 @@
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-// ─── Enums & Models ────────────────────────────────────────────────────────────
-
-enum UserRole {
-  warehouseManager, // maps to "Admin" from the API
-  supervisor,       // maps to "User"  from the API
-}
+enum UserRole { warehouseManager, supervisor }
 
 class UserModel {
   final String id;
-  final String username;
   final String email;
   final String fullName;
+  final String phoneNumber;
   final UserRole role;
-  final String token; // JWT returned by the API
+  final String token;
 
-  UserModel({
+  const UserModel({
     required this.id,
-    required this.username,
     required this.email,
     required this.fullName,
+    required this.phoneNumber,
     required this.role,
     required this.token,
   });
 
-  /// Parse the login/register response JSON into a UserModel.
-  /// Adjust field names here if the real API returns different keys.
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    // Role mapping: "Admin" → warehouseManager, everything else → supervisor
-    final rawRole = (json['role'] ?? json['userRole'] ?? '').toString().toLowerCase();
-    final role = rawRole == 'admin'
-        ? UserRole.warehouseManager
-        : UserRole.supervisor;
-
+    final rawRole = _extractRoleText(json);
     return UserModel(
       id: (json['id'] ?? json['userId'] ?? '').toString(),
-      username: (json['userName'] ?? json['username'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
-      fullName: (json['fullName'] ?? json['name'] ?? json['userName'] ?? '').toString(),
-      role: role,
+      fullName: (json['fullName'] ?? json['name'] ?? json['userName'] ?? '')
+          .toString(),
+      phoneNumber: (json['phoneNumber'] ?? json['phone'] ?? '').toString(),
+      role: _roleFromString(rawRole),
       token: (json['token'] ?? json['accessToken'] ?? '').toString(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'fullName': fullName,
+      'phoneNumber': phoneNumber,
+      'role': role == UserRole.warehouseManager ? 'Admin' : 'User',
+      'token': token,
+    };
+  }
+
+  UserModel copyWith({
+    String? id,
+    String? email,
+    String? fullName,
+    String? phoneNumber,
+    UserRole? role,
+    String? token,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      role: role ?? this.role,
+      token: token ?? this.token,
+    );
+  }
+
+  static String _extractRoleText(Map<String, dynamic> json) {
+    final roleCandidate =
+        json['role'] ??
+        json['userRole'] ??
+        json['roles'] ??
+        json['user']?['role'] ??
+        json['user']?['roles'];
+
+    if (roleCandidate is List && roleCandidate.isNotEmpty) {
+      return roleCandidate.first.toString();
+    }
+
+    return (roleCandidate ?? '').toString();
+  }
 }
 
-// ─── AuthService ────────────────────────────────────────────────────────────────
+class AuthResponseModel {
+  final String token;
+  final String? refreshToken;
+  final UserModel user;
+
+  const AuthResponseModel({
+    required this.token,
+    required this.user,
+    this.refreshToken,
+  });
+
+  factory AuthResponseModel.fromJson(
+    Map<String, dynamic> json, {
+    String fallbackEmail = '',
+  }) {
+    final token = _extractToken(json);
+    final userMap = _extractUserMap(json);
+    final user = UserModel.fromJson({
+      ...userMap,
+      'email': userMap['email'] ?? fallbackEmail,
+      'token': token,
+      'role':
+          userMap['role'] ??
+          userMap['userRole'] ??
+          _extractRoleFromToken(token) ??
+          'User',
+    });
+
+    return AuthResponseModel(
+      token: token,
+      refreshToken: (json['refreshToken'] ?? '').toString(),
+      user: user,
+    );
+  }
+
+  static String _extractToken(Map<String, dynamic> json) {
+    final nestedData = json['data'];
+    final nestedUser = json['user'];
+    return (json['token'] ??
+            json['accessToken'] ??
+            (nestedData is Map<String, dynamic>
+                ? nestedData['token'] ?? nestedData['accessToken']
+                : null) ??
+            (nestedUser is Map<String, dynamic>
+                ? nestedUser['token'] ?? nestedUser['accessToken']
+                : null) ??
+            '')
+        .toString();
+  }
+
+  static Map<String, dynamic> _extractUserMap(Map<String, dynamic> json) {
+    final user = json['user'];
+    final data = json['data'];
+
+    if (user is Map<String, dynamic>) {
+      return user;
+    }
+
+    if (data is Map<String, dynamic>) {
+      final nestedUser = data['user'];
+      if (nestedUser is Map<String, dynamic>) {
+        return nestedUser;
+      }
+      return data;
+    }
+
+    return json;
+  }
+}
 
 class AuthService {
-  static const String _baseUrl = 'https://chemistore.runasp.net/api/Auth';
+  static const String _baseUrl = 'http://chemistore.runasp.net/api';
+  static const String _tokenKey = 'auth_token';
+  static const String _userKey = 'auth_user';
 
   static UserModel? _currentUser;
-
-  // ── Public getters ──────────────────────────────────────────────────────────
+  static final ValueNotifier<int> sessionChanges = ValueNotifier<int>(0);
 
   static UserModel? get currentUser => _currentUser;
-
+  static bool get isAuthenticated => token.isNotEmpty;
   static bool get isWarehouseManager =>
       _currentUser?.role == UserRole.warehouseManager;
-
-  static bool get isSupervisor =>
-      _currentUser?.role == UserRole.supervisor;
-
+  static bool get isSupervisor => _currentUser?.role == UserRole.supervisor;
   static String get token => _currentUser?.token ?? '';
 
-  // ── Login ───────────────────────────────────────────────────────────────────
+  static Map<String, String> get authHeaders {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
 
-  /// Returns null on success (sets [_currentUser]).
-  /// Returns an error message string on failure.
-  static Future<String?> login(String username, String password) async {
+  static Future<void> initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedUser = prefs.getString(_userKey);
+    final storedToken = prefs.getString(_tokenKey);
+
+    if (storedUser == null || storedToken == null || storedToken.isEmpty) {
+      _currentUser = null;
+      return;
+    }
+
     try {
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/login'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'userName': username,
-              'password': password,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      final body = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        _currentUser = UserModel.fromJson(body);
-        return null; // success
+      final decoded = jsonDecode(storedUser);
+      if (decoded is Map<String, dynamic>) {
+        _currentUser = UserModel.fromJson({...decoded, 'token': storedToken});
       }
-
-      // Try to extract a meaningful error message from the response
-      final msg = body['message'] ??
-          body['error'] ??
-          body['title'] ??
-          'Login failed (${response.statusCode})';
-      return msg.toString();
-    } catch (e) {
-      return 'Network error: ${e.toString()}';
+    } catch (_) {
+      _currentUser = null;
+      await prefs.remove(_tokenKey);
+      await prefs.remove(_userKey);
     }
   }
 
-  // ── Register Admin (Warehouse Manager) ─────────────────────────────────────
+  static Future<String?> login(String email, String password) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/Auth/login'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email.trim(), 'password': password}),
+          )
+          .timeout(const Duration(seconds: 15));
 
-  /// Returns null on success, error message string on failure.
+      final decoded = _decodeBody(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (decoded is! Map<String, dynamic>) {
+          return 'Unexpected login response from the server.';
+        }
+
+        final auth = AuthResponseModel.fromJson(
+          decoded,
+          fallbackEmail: email.trim(),
+        );
+
+        if (auth.token.isEmpty) {
+          return 'Login succeeded but no access token was returned.';
+        }
+
+        await _saveSession(auth.user.copyWith(token: auth.token));
+        return null;
+      }
+
+      return _extractErrorMessage(response.statusCode, decoded);
+    } catch (e) {
+      return 'Unable to sign in right now. Please check your connection and try again.';
+    }
+  }
+
   static Future<String?> registerAdmin({
-    required String username,
     required String email,
     required String password,
-    String fullName = '',
-  }) async {
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/register/admin'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'userName': username,
-              'email': email,
-              'password': password,
-              'fullName': fullName,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return null; // success
-      }
-
-      final body = jsonDecode(response.body);
-      final msg = body['message'] ??
-          body['error'] ??
-          body['title'] ??
-          'Registration failed (${response.statusCode})';
-      return msg.toString();
-    } catch (e) {
-      return 'Network error: ${e.toString()}';
-    }
+    required String fullName,
+    required String phoneNumber,
+  }) {
+    return _register(
+      path: '/Auth/register/admin',
+      email: email,
+      password: password,
+      fullName: fullName,
+      phoneNumber: phoneNumber,
+    );
   }
 
-  // ── Register User (Supervisor) ──────────────────────────────────────────────
-
-  /// Returns null on success, error message string on failure.
   static Future<String?> registerUser({
-    required String username,
     required String email,
     required String password,
-    String fullName = '',
+    required String fullName,
+    required String phoneNumber,
+  }) {
+    return _register(
+      path: '/Auth/register/user',
+      email: email,
+      password: password,
+      fullName: fullName,
+      phoneNumber: phoneNumber,
+    );
+  }
+
+  static Future<String?> _register({
+    required String path,
+    required String email,
+    required String password,
+    required String fullName,
+    required String phoneNumber,
   }) async {
     try {
       final response = await http
           .post(
-            Uri.parse('$_baseUrl/register/user'),
-            headers: {'Content-Type': 'application/json'},
+            Uri.parse('$_baseUrl$path'),
+            headers: const {'Content-Type': 'application/json'},
             body: jsonEncode({
-              'userName': username,
-              'email': email,
+              'email': email.trim(),
               'password': password,
-              'fullName': fullName,
+              'fullName': fullName.trim(),
+              'phoneNumber': phoneNumber.trim(),
             }),
           )
           .timeout(const Duration(seconds: 15));
 
+      final decoded = _decodeBody(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return null; // success
+        return null;
       }
 
-      final body = jsonDecode(response.body);
-      final msg = body['message'] ??
-          body['error'] ??
-          body['title'] ??
-          'Registration failed (${response.statusCode})';
-      return msg.toString();
-    } catch (e) {
-      return 'Network error: ${e.toString()}';
+      return _extractErrorMessage(response.statusCode, decoded);
+    } catch (_) {
+      return 'Unable to complete registration right now. Please try again.';
     }
   }
 
-  // ── Logout ──────────────────────────────────────────────────────────────────
-
-  static void logout() {
+  static Future<void> logout() async {
     _currentUser = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
+    sessionChanges.value++;
+  }
+
+  static Future<void> expireSession() async {
+    await logout();
+  }
+
+  static Future<void> _saveSession(UserModel user) async {
+    _currentUser = user;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, user.token);
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+    sessionChanges.value++;
+  }
+
+  static dynamic _decodeBody(String body) {
+    if (body.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return body;
+    }
+  }
+
+  static String _extractErrorMessage(int statusCode, dynamic body) {
+    final fallback = switch (statusCode) {
+      400 => 'Please review the entered data and try again.',
+      401 => 'Invalid credentials or unauthorized request.',
+      404 => 'The requested authentication endpoint was not found.',
+      500 => 'The server encountered an error. Please try again later.',
+      _ => 'Request failed ($statusCode).',
+    };
+
+    if (body is Map<String, dynamic>) {
+      final errors = body['errors'];
+      if (errors is Map<String, dynamic> && errors.isNotEmpty) {
+        final messages = errors.values
+            .expand((value) => value is List ? value : [value])
+            .map((value) => value.toString())
+            .where((value) => value.trim().isNotEmpty)
+            .toList();
+        if (messages.isNotEmpty) {
+          return messages.join('\n');
+        }
+      }
+
+      return (body['message'] ?? body['error'] ?? body['title'] ?? fallback)
+          .toString();
+    }
+
+    if (body is String && body.trim().isNotEmpty) {
+      return body;
+    }
+
+    return fallback;
+  }
+}
+
+UserRole _roleFromString(String rawRole) {
+  final normalized = rawRole.toLowerCase();
+  if (normalized.contains('admin') || normalized.contains('manager')) {
+    return UserRole.warehouseManager;
+  }
+  return UserRole.supervisor;
+}
+
+String? _extractRoleFromToken(String token) {
+  if (token.isEmpty || !token.contains('.')) {
+    return null;
+  }
+
+  try {
+    final parts = token.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    final payload = utf8.decode(
+      base64Url.decode(base64Url.normalize(parts[1])),
+    );
+    final decoded = jsonDecode(payload);
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final role =
+        decoded['role'] ??
+        decoded['roles'] ??
+        decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+
+    if (role is List && role.isNotEmpty) {
+      return role.first.toString();
+    }
+
+    return role?.toString();
+  } catch (_) {
+    return null;
   }
 }

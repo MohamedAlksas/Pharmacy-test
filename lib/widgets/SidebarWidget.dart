@@ -213,8 +213,9 @@ class _Sidebar extends StatelessWidget {
 
   Widget _buildBrand() {
     final fullName = AuthService.currentUser?.fullName ?? '';
-    final username = AuthService.currentUser?.username ?? '';
-    final display = fullName.isNotEmpty ? fullName : username;
+    // final username = AuthService.currentUser?.username ?? '';
+    final display = fullName;
+    // .isNotEmpty ? fullName : username;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),

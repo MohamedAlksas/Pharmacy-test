@@ -4,7 +4,6 @@ import 'package:graduation_project/views/DashboardView.dart';
 import 'package:graduation_project/views/InventoryView.dart';
 import 'package:graduation_project/views/OrdersView.dart';
 import 'package:graduation_project/views/ReportsPage.dart';
-import 'package:graduation_project/views/LoginView.dart';
 import 'package:graduation_project/main.dart';
 
 class MainLayout extends StatefulWidget {
@@ -22,7 +21,6 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void initState() {
     super.initState();
-    // Supervisor starts at index 0 of their reduced menu
     _selectedIndex = AuthService.isSupervisor ? 0 : widget.initialIndex;
   }
 
@@ -33,7 +31,11 @@ class _MainLayoutState extends State<MainLayout> {
 
   List<Widget> _getPages() {
     if (AuthService.isSupervisor) {
-      return const [OrdersPageWithPrint(), ReportsPageWithPrint()];
+      return const [
+        InventoryPage(),
+        OrdersPageWithPrint(),
+        ReportsPageWithPrint(),
+      ];
     }
     return const [
       DashboardPage(),
@@ -47,8 +49,9 @@ class _MainLayoutState extends State<MainLayout> {
   List<_MenuItem> _getMenuItems() {
     if (AuthService.isSupervisor) {
       return [
-        _MenuItem(Icons.list_alt, 'Orders', 0),
-        _MenuItem(Icons.bar_chart, 'Reports', 1),
+        _MenuItem(Icons.inventory_2, 'Inventory', 0),
+        _MenuItem(Icons.list_alt, 'Orders', 1),
+        _MenuItem(Icons.bar_chart, 'Reports', 2),
       ];
     }
     return [
@@ -60,12 +63,8 @@ class _MainLayoutState extends State<MainLayout> {
     ];
   }
 
-  void _logout() {
-    AuthService.logout(); // clears JWT + currentUser
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-    );
+  Future<void> _logout() async {
+    await AuthService.logout();
   }
 
   @override
@@ -196,7 +195,7 @@ class _MainLayoutState extends State<MainLayout> {
                       ),
                       const Spacer(),
                       IconButton(
-                        onPressed: _logout,
+                        onPressed: () => _logout(),
                         icon: Icon(
                           Icons.logout,
                           color: isDark ? Colors.white70 : Colors.black54,
