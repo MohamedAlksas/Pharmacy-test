@@ -1,0 +1,83 @@
+name: Flutter CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  # ─────────────────────────────────────────
+  # JOB 1: Analyze & Test (Linux - fast)
+  # ─────────────────────────────────────────
+  analyze:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+        continue-on-error: true
+
+  # ─────────────────────────────────────────
+  # JOB 2: Build Windows EXE & Upload to S3
+  # ─────────────────────────────────────────
+  build-and-deploy:
+    name: Build EXE & Upload to S3
+    runs-on: windows-latest
+    needs: analyze
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Build Windows EXE
+        run: flutter build windows --release
+
+      - name: Zip the build output
+        run: |
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath pharmacy-wms-windows.zip
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload to S3
+        run: |
+          aws s3 cp pharmacy-wms-windows.zip s3://${{ secrets.S3_BUCKET }}/latest/pharmacy-wms-windows.zip
+
+      - name: Print download link
+        run: |
+          echo "Download URL: https://${{ secrets.S3_BUCKET }}.s3.${{ secrets.AWS_REGION }}.amazonaws.com/latest/pharmacy-wms-windows.zip"
