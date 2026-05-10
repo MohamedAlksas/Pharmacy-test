@@ -31,22 +31,18 @@ class ProductService {
     throw Exception(await _extractError(response.statusCode, decoded));
   }
 
-  static Future<MaterialModel> addProduct(Map<String, dynamic> body) async {
+  static Future<void> addProduct(Map<String, dynamic> body) async {
     final response = await _post(Uri.parse(_baseUrl), body);
     final decoded = _decodeBody(response.body);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      if (decoded is Map<String, dynamic>) {
-        return MaterialModel.fromJson(decoded);
-      }
-
-      return MaterialModel.fromJson(body);
+      return;
     }
 
     throw Exception(await _extractError(response.statusCode, decoded));
   }
 
-  static Future<MaterialModel> updateProduct(
+  static Future<void> updateProduct(
     String id,
     Map<String, dynamic> body,
   ) async {
@@ -54,11 +50,7 @@ class ProductService {
     final decoded = _decodeBody(response.body);
 
     if (response.statusCode == 200 || response.statusCode == 204) {
-      if (decoded is Map<String, dynamic> && decoded.isNotEmpty) {
-        return MaterialModel.fromJson(decoded);
-      }
-
-      return MaterialModel.fromJson({'id': id, ...body});
+      return;
     }
 
     throw Exception(await _extractError(response.statusCode, decoded));

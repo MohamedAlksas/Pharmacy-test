@@ -302,6 +302,11 @@ class AuthService {
     sessionChanges.value++;
   }
 
+  static Future<void> updateCurrentUser(UserModel updated) async {
+    final tokenValue = updated.token.isNotEmpty ? updated.token : token;
+    await _saveSession(updated.copyWith(token: tokenValue));
+  }
+
   static Future<void> expireSession() async {
     await logout();
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:graduation_project/Models/ProductProvider.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
-import 'package:graduation_project/Services/alertService.dart';
 import 'package:graduation_project/views/DashboardView.dart';
 import 'package:graduation_project/views/InventoryView.dart';
 import 'package:graduation_project/views/LoginView.dart';
@@ -59,7 +59,6 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void initState() {
     super.initState();
-    AlertService.refreshAlerts();
     _selectedIndex = AuthService.isSupervisor ? 0 : widget.initialIndex;
   }
 
@@ -84,13 +83,12 @@ class _MainLayoutState extends State<MainLayout> {
     final isManager = AuthService.isWarehouseManager;
     final menu = isManager ? _managerMenu : _supervisorMenu;
     final pages = isManager ? _managerPages : _supervisorPages;
+    final provider = ProductProvider.of(context);
 
     // Live counts
-    final expiredCount = AlertService.getExpiredMaterialsCount();
-    final expiringSoon = AlertService.getExpiringSoonCount();
-    final lowStock = AlertService.getLowStockCount();
-    final criticalCount = expiredCount + expiringSoon;
-    final totalAlerts = AlertService.getAllAlerts().length;
+    final criticalCount = provider.expiredCount + provider.expiringSoonCount;
+    final lowStock = provider.lowStockCount;
+    final totalAlerts = criticalCount + lowStock;
 
     return Scaffold(
       body: Row(
@@ -202,10 +200,12 @@ class _Sidebar extends StatelessWidget {
 
   String? _badgeFor(int menuIndex) {
     if (!isManager) return null;
-    if (menuIndex == 2 && criticalCount > 0)
+    if (menuIndex == 2 && criticalCount > 0) {
       return criticalCount.toString(); // Reports
-    if (menuIndex == 3 && lowStockCount > 0)
+    }
+    if (menuIndex == 3 && lowStockCount > 0) {
       return lowStockCount.toString(); // Orders
+    }
     return null;
   }
 
@@ -213,9 +213,8 @@ class _Sidebar extends StatelessWidget {
 
   Widget _buildBrand() {
     final fullName = AuthService.currentUser?.fullName ?? '';
-    // final username = AuthService.currentUser?.username ?? '';
     final display = fullName;
-    // .isNotEmpty ? fullName : username;
+    final roleColor = isManager ? Colors.blue : Colors.green;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -223,13 +222,10 @@ class _Sidebar extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: isDark
-                ? const Color(0xFF0B2B2B)
-                : const Color(0xFFDDF3F3),
-            child: Icon(
-              Icons.local_pharmacy,
-              size: 22,
-              color: isDark ? Colors.white70 : const Color(0xFF0A6B6E),
+            backgroundColor: roleColor.withOpacity(0.16),
+            child: Text(
+              _profileInitial(fullName),
+              style: TextStyle(color: roleColor, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(width: 10),
@@ -260,6 +256,12 @@ class _Sidebar extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _profileInitial(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return '?';
+    return trimmed.substring(0, 1).toUpperCase();
   }
 
   // ── role badge ──────────────────────────────────────────────────────────────

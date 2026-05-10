@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
+import 'package:graduation_project/Services/notificationService.dart';
+import 'package:http/http.dart' as http;
 
 class UserInfoPage extends StatefulWidget {
   const UserInfoPage({super.key});
@@ -9,13 +13,12 @@ class UserInfoPage extends StatefulWidget {
 }
 
 class _UserInfoPageState extends State<UserInfoPage> {
+  static const String _baseUrl = 'http://chemistore.runasp.net/api';
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _roleController = TextEditingController();
-
   bool _isEditing = false;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -23,42 +26,66 @@ class _UserInfoPageState extends State<UserInfoPage> {
     _loadUserData();
   }
 
-  void _loadUserData() {
-    final user = AuthService.currentUser;
-    _nameController.text = user?.fullName ?? '';
-    _emailController.text = user?.email ?? '';
-    _phoneController.text = user?.phoneNumber ?? '';
-    _roleController.text = AuthService.isWarehouseManager
-        ? 'Warehouse Manager'
-        : 'Supervisor';
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
-    _roleController.dispose();
     super.dispose();
   }
 
-  void _toggleEdit() => setState(() => _isEditing = !_isEditing);
+  void _loadUserData() {
+    final user = AuthService.currentUser;
+    _nameController.text = user?.fullName ?? '';
+    _phoneController.text = user?.phoneNumber ?? '';
+  }
 
-  void _saveChanges() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isEditing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully')),
+  Future<void> _saveChanges() async {
+    if (!_formKey.currentState!.validate()) return;
+    final current = AuthService.currentUser;
+    if (current == null) return;
+
+    setState(() => _saving = true);
+    try {
+      final response = await http
+          .patch(
+            Uri.parse('$_baseUrl/Auth/update-profile'),
+            headers: AuthService.authHeaders,
+            body: jsonEncode({
+              'fullName': _nameController.text.trim(),
+              'phoneNumber': _phoneController.text.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        _showSnack('Unable to update profile.', isError: true);
+        return;
+      }
+
+      await AuthService.updateCurrentUser(
+        current.copyWith(
+          fullName: _nameController.text.trim(),
+          phoneNumber: _phoneController.text.trim(),
+        ),
       );
+      if (!mounted) return;
+      setState(() => _isEditing = false);
+      _showSnack('Profile updated successfully');
+    } catch (e) {
+      if (mounted) _showSnack('Unable to update profile.', isError: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor =
-        isDark ? const Color(0xFF0A1A1F) : const Color(0xFFF5F9FA);
+    final bgColor = isDark ? const Color(0xFF0A1A1F) : const Color(0xFFF5F9FA);
     final cardColor = isDark ? const Color(0xFF1A2F35) : Colors.white;
+    final isManager = AuthService.isWarehouseManager;
+    final roleColor = isManager ? Colors.blue : Colors.green;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -69,175 +96,143 @@ class _UserInfoPageState extends State<UserInfoPage> {
           children: [
             Row(
               children: [
-                Text('User Profile',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87)),
+                Text(
+                  'Account Settings',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
                 const Spacer(),
                 if (!_isEditing)
                   ElevatedButton.icon(
-                    onPressed: _toggleEdit,
+                    onPressed: () => setState(() => _isEditing = true),
                     icon: const Icon(Icons.edit),
                     label: const Text('Edit Profile'),
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white),
+                      backgroundColor: const Color(0xFF1CA0A5),
+                      foregroundColor: Colors.white,
+                    ),
                   ),
               ],
             ),
-            const SizedBox(height: 32),
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.blueAccent.withOpacity(0.2),
-                    child: const Icon(Icons.person,
-                        size: 60, color: Colors.blueAccent),
-                  ),
-                  const SizedBox(height: 16),
-                  if (!_isEditing)
-                    TextButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Change Photo'),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            _profileHeader(cardColor, roleColor, isManager, isDark),
+            const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2))
-                ],
-              ),
+              decoration: _cardDecoration(cardColor),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Personal Information',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87)),
-                    const SizedBox(height: 24),
-                    _buildTextField(
-                        controller: _nameController,
-                        label: 'Full Name',
-                        icon: Icons.person_outline,
-                        enabled: _isEditing,
-                        isDark: isDark),
+                    Text(
+                      'Personal Information',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _field(
+                      controller: _nameController,
+                      label: 'Full Name',
+                      icon: Icons.person_outline,
+                      enabled: _isEditing,
+                      isDark: isDark,
+                    ),
                     const SizedBox(height: 16),
-                    _buildTextField(
-                        controller: _emailController,
-                        label: 'Email',
-                        icon: Icons.email_outlined,
-                        enabled: _isEditing,
-                        isDark: isDark,
-                        keyboardType: TextInputType.emailAddress),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                        controller: _phoneController,
-                        label: 'Phone Number',
-                        icon: Icons.phone_outlined,
-                        enabled: _isEditing,
-                        isDark: isDark,
-                        keyboardType: TextInputType.phone),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                        controller: _roleController,
-                        label: 'Role',
-                        icon: Icons.work_outline,
-                        enabled: false,
-                        isDark: isDark),
+                    _field(
+                      controller: _phoneController,
+                      label: 'Phone Number',
+                      icon: Icons.phone_outlined,
+                      enabled: _isEditing,
+                      isDark: isDark,
+                    ),
+                    if (_isEditing) ...[
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          OutlinedButton(
+                            onPressed: _saving
+                                ? null
+                                : () {
+                                    _loadUserData();
+                                    setState(() => _isEditing = false);
+                                  },
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: _saving ? null : _saveChanges,
+                            child: Text(_saving ? 'Saving...' : 'Save Changes'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
-            if (_isEditing) ...[
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        _loadUserData();
-                        _toggleEdit();
-                      },
-                      style: OutlinedButton.styleFrom(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 16)),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _saveChanges,
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 16)),
-                      child: const Text('Save Changes'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2))
-                ],
-              ),
+              decoration: _cardDecoration(cardColor),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Account Settings',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87)),
-                  const SizedBox(height: 16),
+                  Text(
+                    'Account Settings',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   ListTile(
-                    leading: const Icon(Icons.lock_outline,
-                        color: Colors.blueAccent),
+                    leading: const Icon(
+                      Icons.lock_outline,
+                      color: Color(0xFF1CA0A5),
+                    ),
                     title: const Text('Change Password'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: _showChangePasswordDialog,
                   ),
                   const Divider(),
                   ListTile(
-                    leading: const Icon(Icons.notifications_outlined,
-                        color: Colors.blueAccent),
+                    leading: const Icon(
+                      Icons.notifications_outlined,
+                      color: Color(0xFF1CA0A5),
+                    ),
                     title: const Text('Notifications'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    trailing: _notificationBadge(),
+                    onTap: _showNotificationsDialog,
                   ),
                   const Divider(),
                   ListTile(
-                    leading: const Icon(Icons.security_outlined,
-                        color: Colors.blueAccent),
+                    leading: const Icon(
+                      Icons.security_outlined,
+                      color: Color(0xFF1CA0A5),
+                    ),
                     title: const Text('Privacy & Security'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Privacy & Security'),
+                        content: const Text('Privacy settings coming soon.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -248,44 +243,466 @@ class _UserInfoPageState extends State<UserInfoPage> {
     );
   }
 
-  Widget _buildTextField({
+  Widget _profileHeader(
+    Color cardColor,
+    Color roleColor,
+    bool isManager,
+    bool isDark,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: _cardDecoration(cardColor),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 42,
+            backgroundColor: roleColor.withOpacity(0.14),
+            child: Text(
+              _profileInitial(),
+              style: TextStyle(
+                color: roleColor,
+                fontSize: 34,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _nameController.text.isEmpty
+                      ? 'Unknown user'
+                      : _nameController.text,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _phoneController.text.isEmpty ? '-' : _phoneController.text,
+                ),
+                const SizedBox(height: 10),
+                _roleBadge(isManager, roleColor),
+                const SizedBox(height: 8),
+                Text(
+                  isManager
+                      ? 'Scope: Dashboard, Inventory, Reports, Orders, Settings'
+                      : 'Scope: Orders and Reports',
+                  style: TextStyle(
+                    color: isDark ? Colors.white60 : Colors.black54,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _roleBadge(bool isManager, Color roleColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: roleColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: roleColor.withOpacity(0.3)),
+      ),
+      child: Text(
+        isManager ? 'Warehouse Manager' : 'Supervisor',
+        style: TextStyle(color: roleColor, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  String _profileInitial() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return '?';
+    return name.substring(0, 1).toUpperCase();
+  }
+
+  Widget _notificationBadge() {
+    final count = NotificationService.getUnread().length;
+    if (count == 0) return const Icon(Icons.chevron_right);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        count.toString(),
+        style: const TextStyle(color: Colors.white, fontSize: 12),
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration(Color color) {
+    return BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  Widget _field({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     required bool enabled,
     required bool isDark,
-    TextInputType? keyboardType,
   }) {
     return TextFormField(
       controller: controller,
       enabled: enabled,
-      keyboardType: keyboardType,
-      style:
-          TextStyle(color: isDark ? Colors.white : Colors.black87),
+      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: Colors.blueAccent),
-        border:
-            OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-              color: isDark ? Colors.grey[700]! : Colors.grey[300]!),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-              color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
-        ),
+        prefixIcon: Icon(icon, color: const Color(0xFF1CA0A5)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         filled: !enabled,
         fillColor: enabled
             ? null
             : (isDark ? Colors.grey[850] : Colors.grey[100]),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) return 'Please enter $label';
+        if (value == null || value.trim().isEmpty) return 'Required';
         return null;
       },
     );
+  }
+
+  void _showNotificationsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Notifications'),
+          content: SizedBox(
+            width: 460,
+            child: NotificationService.getAll().isEmpty
+                ? const Text('No notifications')
+                : ListView(
+                    shrinkWrap: true,
+                    children: NotificationService.getAll().map((item) {
+                      return ListTile(
+                        title: Text(item.title),
+                        subtitle: Text(
+                          '${item.body}\n${item.createdAt.toLocal().toString().substring(0, 16)}',
+                        ),
+                        isThreeLine: true,
+                        trailing: item.isRead
+                            ? null
+                            : TextButton(
+                                onPressed: () {
+                                  NotificationService.markRead(item.id);
+                                  setState(() {});
+                                  setDialogState(() {});
+                                },
+                                child: const Text('Mark Read'),
+                              ),
+                      );
+                    }).toList(),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                NotificationService.markAllRead();
+                setState(() {});
+                Navigator.pop(ctx);
+              },
+              child: const Text('Mark All Read'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog() {
+    showDialog(context: context, builder: (_) => const _ChangePasswordDialog());
+  }
+
+  void _showSnack(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : null,
+      ),
+    );
+  }
+}
+
+class _ChangePasswordDialog extends StatefulWidget {
+  const _ChangePasswordDialog();
+
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
+  static const String _baseUrl = 'http://chemistore.runasp.net/api';
+  final _emailCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
+  final _newPasswordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
+  int _step = 0;
+  bool _loading = false;
+  String? _error;
+  String? _success;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _codeCtrl.dispose();
+    _newPasswordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Change Password'),
+      content: SizedBox(
+        width: 520,
+        child: Stepper(
+          currentStep: _step,
+          controlsBuilder: (context, details) => const SizedBox.shrink(),
+          steps: [
+            Step(
+              title: const Text('Enter Email'),
+              isActive: _step >= 0,
+              state: _stepState(0),
+              content: _stepContent(
+                children: [
+                  TextField(
+                    controller: _emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Enter your email address',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _loading ? null : _sendCode,
+                    child: const Text('Send Verification Code'),
+                  ),
+                ],
+              ),
+            ),
+            Step(
+              title: const Text('Verify Code'),
+              isActive: _step >= 1,
+              state: _stepState(1),
+              content: _stepContent(
+                children: [
+                  TextField(
+                    controller: _codeCtrl,
+                    maxLength: 6,
+                    decoration: const InputDecoration(
+                      labelText: '6-digit code',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _loading ? null : _verifyCode,
+                    child: const Text('Verify Code'),
+                  ),
+                ],
+              ),
+            ),
+            Step(
+              title: const Text('New Password'),
+              isActive: _step >= 2,
+              state: _stepState(2),
+              content: _stepContent(
+                children: [
+                  TextField(
+                    controller: _newPasswordCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'New Password',
+                    ),
+                  ),
+                  TextField(
+                    controller: _confirmPasswordCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm New Password',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _loading ? null : _changePassword,
+                    child: const Text('Change Password'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepContent({required List<Widget> children}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...children,
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: const TextStyle(color: Colors.red)),
+        ],
+        if (_success != null) ...[
+          const SizedBox(height: 8),
+          Text(_success!, style: const TextStyle(color: Colors.green)),
+        ],
+      ],
+    );
+  }
+
+  StepState _stepState(int index) {
+    if (_step > index) return StepState.complete;
+    if (_step == index) return StepState.editing;
+    return StepState.indexed;
+  }
+
+  Future<void> _sendCode() async {
+    if (_emailCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'Enter your email address.');
+      return;
+    }
+    await _post(
+      '/Auth/send-reset-code',
+      {'email': _emailCtrl.text.trim()},
+      onSuccess: () => setState(() {
+        _step = 1;
+        _success = 'Verification code sent.';
+      }),
+    );
+  }
+
+  Future<void> _verifyCode() async {
+    await _post('/Auth/verify-reset-code', {
+      'email': _emailCtrl.text.trim(),
+      'code': _codeCtrl.text.trim(),
+    }, onSuccess: () => setState(() => _step = 2));
+  }
+
+  Future<void> _changePassword() async {
+    if (_newPasswordCtrl.text.length < 6) {
+      setState(() => _error = 'New password must be at least 6 characters.');
+      return;
+    }
+    if (_newPasswordCtrl.text != _confirmPasswordCtrl.text) {
+      setState(() => _error = 'Passwords do not match.');
+      return;
+    }
+    await _post(
+      '/Auth/change-password',
+      {
+        'email': _emailCtrl.text.trim(),
+        'code': _codeCtrl.text.trim(),
+        'newPassword': _newPasswordCtrl.text,
+      },
+      onSuccess: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password changed successfully')),
+        );
+        setState(() {
+          _step = 0;
+          _emailCtrl.clear();
+          _codeCtrl.clear();
+          _newPasswordCtrl.clear();
+          _confirmPasswordCtrl.clear();
+        });
+      },
+    );
+  }
+
+  Future<void> _post(
+    String path,
+    Map<String, dynamic> body, {
+    required VoidCallback onSuccess,
+  }) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _success = null;
+    });
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl$path'),
+            headers: AuthService.authHeaders,
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+      if (!mounted) return;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        onSuccess();
+      } else {
+        setState(() => _error = _extractError(response));
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Request failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _extractError(http.Response response) {
+    if (response.body.trim().isEmpty) {
+      return 'Request failed (${response.statusCode}).';
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final errors = decoded['errors'];
+        if (errors is Map<String, dynamic> && errors.isNotEmpty) {
+          final messages = errors.values
+              .expand((value) => value is List ? value : [value])
+              .map((value) => value.toString())
+              .where((value) => value.trim().isNotEmpty)
+              .toList();
+          if (messages.isNotEmpty) return messages.join('\n');
+        }
+        final message =
+            decoded['message'] ?? decoded['error'] ?? decoded['title'];
+        if (message != null && message.toString().trim().isNotEmpty) {
+          return message.toString();
+        }
+      }
+      if (decoded is String && decoded.trim().isNotEmpty) return decoded;
+    } catch (_) {
+      if (response.body.trim().isNotEmpty) return response.body;
+    }
+
+    return 'Request failed (${response.statusCode}).';
   }
 }

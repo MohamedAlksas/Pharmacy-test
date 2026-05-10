@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
 import 'package:graduation_project/Models/materialModel.dart';
@@ -10,7 +12,7 @@ class ProductProvider extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
-  List<MaterialModel> get products => List.unmodifiable(_products);
+  List<MaterialModel> get products => UnmodifiableListView(_products);
   bool get loading => _loading;
   String? get error => _error;
 
@@ -45,10 +47,7 @@ class ProductProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _products = AuthService.isWarehouseManager
-          ? await ProductService.getAdminProducts()
-          : await ProductService.getAllProducts();
-      _syncDerivedState();
+      await _replaceProductsFromApi();
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
     }
@@ -59,53 +58,64 @@ class ProductProvider extends ChangeNotifier {
 
   Future<String?> addProduct(Map<String, dynamic> body) async {
     try {
-      final newProduct = await ProductService.addProduct(body);
-      if (newProduct.id.isEmpty) {
-        await loadProducts();
-      } else {
-        _products = [..._products, newProduct];
-        _syncDerivedState();
-        notifyListeners();
-      }
+      await ProductService.addProduct(body);
+      await _refreshProductsAfterMutation();
       return null;
     } catch (e) {
-      return e.toString().replaceFirst('Exception: ', '');
+      return _handleMutationError(e);
     }
   }
 
   Future<String?> updateProduct(String id, Map<String, dynamic> body) async {
     try {
-      final updatedProduct = await ProductService.updateProduct(id, body);
-      if (updatedProduct.id.isEmpty) {
-        await loadProducts();
-      } else {
-        final index = _products.indexWhere((product) => product.id == id);
-        if (index != -1) {
-          _products[index] = updatedProduct;
-        }
-        _syncDerivedState();
-        notifyListeners();
-      }
+      await ProductService.updateProduct(id, body);
+      await _refreshProductsAfterMutation();
       return null;
     } catch (e) {
-      return e.toString().replaceFirst('Exception: ', '');
+      return _handleMutationError(e);
     }
   }
 
   Future<String?> deleteProduct(String id) async {
-    final error = await ProductService.deleteProduct(id);
-    if (error == null) {
-      _products = _products.where((product) => product.id != id).toList();
-      _syncDerivedState();
-      notifyListeners();
+    try {
+      final error = await ProductService.deleteProduct(id);
+      if (error != null) {
+        return error;
+      }
+
+      await _refreshProductsAfterMutation();
+      return null;
+    } catch (e) {
+      return _handleMutationError(e);
     }
-    return error;
   }
 
   MaterialModel? findBySku(String sku) {
     try {
       return _products.firstWhere(
         (product) => product.sku.toLowerCase() == sku.toLowerCase(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  MaterialModel? findById(String id) {
+    try {
+      return _products.firstWhere((product) => product.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  MaterialModel? findByNameOrSku(String value) {
+    final query = value.trim().toLowerCase();
+    if (query.isEmpty) return null;
+    try {
+      return _products.firstWhere(
+        (product) =>
+            product.sku.toLowerCase() == query ||
+            product.name.toLowerCase() == query,
       );
     } catch (_) {
       return null;
@@ -125,6 +135,28 @@ class ProductProvider extends ChangeNotifier {
   void _syncDerivedState() {
     MaterialService.updateCache(_products);
     AlertService.initializeAlertsFromModels(_products);
+  }
+
+  Future<List<MaterialModel>> _fetchProductsFromApi() {
+    return ProductService.getAllProducts();
+  }
+
+  Future<void> _replaceProductsFromApi() async {
+    _products = await _fetchProductsFromApi();
+    _syncDerivedState();
+  }
+
+  Future<void> _refreshProductsAfterMutation() async {
+    _error = null;
+    await _replaceProductsFromApi();
+    notifyListeners();
+  }
+
+  String _handleMutationError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '');
+    _error = message;
+    notifyListeners();
+    return message;
   }
 
   static ProductProvider of(BuildContext context, {bool listen = true}) {

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:graduation_project/Models/ProductProvider.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
 import 'package:graduation_project/views/DashboardView.dart';
 import 'package:graduation_project/views/InventoryView.dart';
 import 'package:graduation_project/views/OrdersView.dart';
 import 'package:graduation_project/views/ReportsPage.dart';
+import 'package:graduation_project/views/UserInfo.dart';
 import 'package:graduation_project/main.dart';
 
 class MainLayout extends StatefulWidget {
@@ -31,27 +33,25 @@ class _MainLayoutState extends State<MainLayout> {
 
   List<Widget> _getPages() {
     if (AuthService.isSupervisor) {
-      return const [
-        InventoryPage(),
-        OrdersPageWithPrint(),
-        ReportsPageWithPrint(),
+      return [
+        OrdersPage(onGoToOrders: () => _onSelect(0)),
+        ReportsPage(onGoToOrders: () => _onSelect(0)),
       ];
     }
     return const [
       DashboardPage(),
       InventoryPage(),
-      ReportsPageWithPrint(),
-      OrdersPageWithPrint(),
-      Center(child: Text('Settings Page')),
+      ReportsPage(),
+      OrdersPage(),
+      UserInfoPage(),
     ];
   }
 
   List<_MenuItem> _getMenuItems() {
     if (AuthService.isSupervisor) {
       return [
-        _MenuItem(Icons.inventory_2, 'Inventory', 0),
-        _MenuItem(Icons.list_alt, 'Orders', 1),
-        _MenuItem(Icons.bar_chart, 'Reports', 2),
+        _MenuItem(Icons.list_alt, 'Orders', 0),
+        _MenuItem(Icons.bar_chart, 'Reports', 1),
       ];
     }
     return [
@@ -70,8 +70,19 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final provider = ProductProvider.of(context);
     final pages = _getPages();
     final menuItems = _getMenuItems();
+    final roleColor = AuthService.isWarehouseManager
+        ? Colors.blue
+        : Colors.green;
+    final fullName = AuthService.currentUser?.fullName ?? '';
+
+    final expiredCount = provider.expiredCount;
+    final expiringSoonCount = provider.expiringSoonCount;
+    final lowStockCount = provider.lowStockCount;
+    final criticalCount = expiredCount + expiringSoonCount;
+    final totalAlerts = criticalCount + lowStockCount;
 
     return Scaffold(
       body: Row(
@@ -93,12 +104,13 @@ class _MainLayoutState extends State<MainLayout> {
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundColor: isDark
-                            ? const Color(0xFF0B2B2B)
-                            : const Color(0xFFDDF3F3),
-                        child: Icon(
-                          Icons.local_pharmacy,
-                          color: isDark ? Colors.white : Colors.black54,
+                        backgroundColor: roleColor.withOpacity(0.16),
+                        child: Text(
+                          _profileInitial(fullName),
+                          style: TextStyle(
+                            color: roleColor,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -115,7 +127,7 @@ class _MainLayoutState extends State<MainLayout> {
                               ),
                             ),
                             Text(
-                              AuthService.currentUser?.fullName ?? '',
+                              fullName,
                               style: TextStyle(
                                 fontSize: 10,
                                 color: isDark ? Colors.white60 : Colors.black54,
@@ -172,6 +184,14 @@ class _MainLayoutState extends State<MainLayout> {
                     }).toList(),
                   ),
                 ),
+
+                if (AuthService.isWarehouseManager && totalAlerts > 0)
+                  _alertSummaryPanel(
+                    totalAlerts: totalAlerts,
+                    criticalCount: criticalCount,
+                    lowStockCount: lowStockCount,
+                    isDark: isDark,
+                  ),
 
                 const Divider(height: 1),
 
@@ -239,6 +259,80 @@ class _MainLayoutState extends State<MainLayout> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       onTap: () => _onSelect(index),
     );
+  }
+
+  Widget _alertSummaryPanel({
+    required int totalAlerts,
+    required int criticalCount,
+    required int lowStockCount,
+    required bool isDark,
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(isDark ? 0.12 : 0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.withOpacity(0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.red,
+                size: 15,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                '$totalAlerts Active Alert${totalAlerts == 1 ? '' : 's'}',
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          if (criticalCount > 0) ...[
+            const SizedBox(height: 5),
+            _alertSummaryRow(
+              Icons.error_outline,
+              Colors.red,
+              '$criticalCount expired / expiring soon',
+            ),
+          ],
+          if (lowStockCount > 0) ...[
+            const SizedBox(height: 4),
+            _alertSummaryRow(
+              Icons.inventory_2_outlined,
+              Colors.orange,
+              '$lowStockCount low-stock item${lowStockCount == 1 ? '' : 's'}',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _alertSummaryRow(IconData icon, Color color, String text) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 12),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(text, style: TextStyle(color: color, fontSize: 11)),
+        ),
+      ],
+    );
+  }
+
+  String _profileInitial(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return '?';
+    return trimmed.substring(0, 1).toUpperCase();
   }
 }
 

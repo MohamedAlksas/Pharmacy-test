@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:graduation_project/Models/orderModel.dart';
 import 'package:graduation_project/Models/ProductProvider.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
 import 'package:graduation_project/Models/materialModel.dart';
+import 'package:graduation_project/Services/notificationService.dart';
+import 'package:graduation_project/Services/orderService.dart';
 import 'package:graduation_project/widgets/AddMaterial.dart';
+import 'package:graduation_project/widgets/ExpiryEditDialog.dart';
+import 'package:graduation_project/widgets/ExportMaterial.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -101,6 +106,12 @@ class _InventoryPageState extends State<InventoryPage> {
             onPressed: () => _openProductDialog(context, provider),
             icon: const Icon(Icons.add),
             label: const Text('Add Product'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => _openExportDialog(context, provider),
+            icon: const Icon(Icons.upload_outlined),
+            label: const Text('Export Product'),
           ),
         ],
       ],
@@ -252,18 +263,30 @@ class _InventoryPageState extends State<InventoryPage> {
     ProductProvider provider, {
     MaterialModel? existingProduct,
   }) async {
+    if (existingProduct != null) {
+      await _openExpiryEditDialog(context, existingProduct);
+      return;
+    }
+
     final payload = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => AddMaterialDialog(initialProduct: existingProduct),
+      builder: (_) => const AddMaterialDialog(),
     );
 
     if (payload == null) {
       return;
     }
 
-    final error = existingProduct == null
-        ? await provider.addProduct(payload)
-        : await provider.updateProduct(existingProduct.id, payload);
+    final isExistingStockAdd = payload['_mode'] == 'existing';
+    final String? error;
+    if (isExistingStockAdd) {
+      error = await provider.updateProduct(
+        payload['_productId'].toString(),
+        Map<String, dynamic>.from(payload['_body'] as Map),
+      );
+    } else {
+      error = await provider.addProduct(payload);
+    }
 
     if (!context.mounted) {
       return;
@@ -276,13 +299,130 @@ class _InventoryPageState extends State<InventoryPage> {
       return;
     }
 
+    OrderService.addOrder(
+      OrderModel(
+        productId: isExistingStockAdd ? payload['_productId'].toString() : null,
+        productName: payload['materialName']?.toString() ?? '',
+        productSku: payload['material_SKU']?.toString() ?? '',
+        quantity: payload['quantity'] is int
+            ? payload['quantity'] as int
+            : int.tryParse(payload['quantity']?.toString() ?? '') ?? 0,
+        unit: payload['unit']?.toString() ?? '',
+        logNumber: payload['logNumber']?.toString() ?? '',
+        categoryId: payload['categoryId'] is int
+            ? payload['categoryId'] as int
+            : int.tryParse(payload['categoryId']?.toString() ?? '') ?? 0,
+        type: OrderType.add,
+        status: OrderStatus.completed,
+        createdBy: AuthService.currentUser?.fullName ?? 'Unknown user',
+      ),
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          existingProduct == null
-              ? 'Product added successfully.'
-              : 'Product updated successfully.',
+          isExistingStockAdd
+              ? 'Stock updated successfully.'
+              : 'Product added successfully.',
         ),
+      ),
+    );
+  }
+
+  Future<void> _openExportDialog(
+    BuildContext context,
+    ProductProvider provider,
+  ) async {
+    final result = await showDialog<ExportMaterialResult>(
+      context: context,
+      builder: (_) => ExportMaterialDialog(provider: provider),
+    );
+    if (result == null) return;
+
+    final error = await provider.updateProduct(result.product.id, result.body);
+    if (!context.mounted) return;
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    OrderService.addOrder(
+      OrderModel(
+        productId: result.product.id,
+        productName: result.product.name,
+        productSku: result.product.sku,
+        quantity: result.quantity,
+        unit: result.product.unit,
+        logNumber: result.product.lot,
+        categoryId: result.product.categoryId,
+        type: OrderType.export,
+        status: OrderStatus.completed,
+        createdBy: AuthService.currentUser?.fullName ?? 'Unknown user',
+      ),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${result.quantity} units of ${result.product.name} exported successfully.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openExpiryEditDialog(
+    BuildContext context,
+    MaterialModel product,
+  ) async {
+    final newExpiry = await showDialog<String>(
+      context: context,
+      builder: (_) => ExpiryEditDialog(product: product),
+    );
+    if (newExpiry == null) return;
+
+    final createdBy = AuthService.currentUser?.fullName ?? 'Unknown user';
+    OrderService.addOrder(
+      OrderModel(
+        productId: product.id,
+        productName: product.name,
+        productSku: product.sku,
+        quantity: product.quantity,
+        unit: product.unit,
+        logNumber: product.lot,
+        categoryId: product.categoryId,
+        type: OrderType.edit,
+        status: OrderStatus.pending,
+        createdBy: createdBy,
+        notes: newExpiry,
+      ),
+    );
+
+    NotificationService.addNotification(
+      AppNotification(
+        title: 'Edit Request',
+        body:
+            '$createdBy requested expiry change for ${product.name} (${product.sku})',
+        materialName: product.name,
+        productSku: product.sku,
+        proposedExpiry: newExpiry,
+        managerName: createdBy,
+      ),
+    );
+
+    NotificationService.sendEditRequestEmail(
+      productName: product.name,
+      productSku: product.sku,
+      managerName: createdBy,
+      newExpiry: _formatDate(newExpiry),
+    );
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Edit request submitted. Awaiting supervisor approval.'),
       ),
     );
   }

@@ -75,7 +75,7 @@ class MaterialModel {
           : 'Uncategorized',
       createdAt:
           _tryParseDateTime(json['createdAt'] ?? json['created_at']) ??
-          DateTime.now(),
+          DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
 
