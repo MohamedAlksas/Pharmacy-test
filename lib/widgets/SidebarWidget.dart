@@ -86,9 +86,9 @@ class _MainLayoutState extends State<MainLayout> {
     final provider = ProductProvider.of(context);
 
     // Live counts
-    final criticalCount = provider.expiredCount + provider.expiringSoonCount;
+    final criticalCount = provider.getCriticalAlertsCount();
     final lowStock = provider.lowStockCount;
-    final totalAlerts = criticalCount + lowStock;
+    final hasAnyAlerts = criticalCount > 0 || lowStock > 0;
 
     return Scaffold(
       body: Row(
@@ -99,7 +99,7 @@ class _MainLayoutState extends State<MainLayout> {
             selectedIndex: _selectedIndex,
             menu: menu,
             criticalCount: criticalCount,
-            totalAlerts: totalAlerts,
+            hasAnyAlerts: hasAnyAlerts,
             lowStockCount: lowStock,
             onSelect: _onSelect,
             onLogout: _logout,
@@ -122,7 +122,7 @@ class _Sidebar extends StatelessWidget {
     required this.selectedIndex,
     required this.menu,
     required this.criticalCount,
-    required this.totalAlerts,
+    required this.hasAnyAlerts,
     required this.lowStockCount,
     required this.onSelect,
     required this.onLogout,
@@ -133,7 +133,7 @@ class _Sidebar extends StatelessWidget {
   final int selectedIndex;
   final List<_MenuItem> menu;
   final int criticalCount;
-  final int totalAlerts;
+  final bool hasAnyAlerts;
   final int lowStockCount;
   final void Function(int) onSelect;
   final VoidCallback onLogout;
@@ -186,7 +186,7 @@ class _Sidebar extends StatelessWidget {
           ),
 
           // Alert summary — manager only
-          if (isManager && totalAlerts > 0) _buildAlertPanel(),
+          if (isManager && hasAnyAlerts) _buildAlertPanel(),
 
           Divider(height: 1, color: isDark ? Colors.white12 : Colors.black12),
           _buildBottomBar(),
@@ -325,7 +325,7 @@ class _Sidebar extends StatelessWidget {
               ),
               const SizedBox(width: 5),
               Text(
-                '$totalAlerts Active Alert${totalAlerts != 1 ? 's' : ''}',
+                '$criticalCount Critical Alert${criticalCount != 1 ? 's' : ''}',
                 style: const TextStyle(
                   color: Colors.red,
                   fontWeight: FontWeight.w700,

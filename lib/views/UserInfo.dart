@@ -6,7 +6,9 @@ import 'package:graduation_project/Services/notificationService.dart';
 import 'package:http/http.dart' as http;
 
 class UserInfoPage extends StatefulWidget {
-  const UserInfoPage({super.key});
+  final bool showBackButton;
+
+  const UserInfoPage({super.key, this.showBackButton = false});
 
   @override
   State<UserInfoPage> createState() => _UserInfoPageState();
@@ -96,6 +98,14 @@ class _UserInfoPageState extends State<UserInfoPage> {
           children: [
             Row(
               children: [
+                if (widget.showBackButton) ...[
+                  IconButton(
+                    tooltip: 'Back',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Text(
                   'Account Settings',
                   style: TextStyle(
@@ -458,7 +468,6 @@ class _ChangePasswordDialog extends StatefulWidget {
 
 class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
   static const String _baseUrl = 'http://chemistore.runasp.net/api';
-  final _emailCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
@@ -469,7 +478,6 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
     _codeCtrl.dispose();
     _newPasswordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
@@ -487,17 +495,13 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
           controlsBuilder: (context, details) => const SizedBox.shrink(),
           steps: [
             Step(
-              title: const Text('Enter Email'),
+              title: const Text('Send Code'),
               isActive: _step >= 0,
               state: _stepState(0),
               content: _stepContent(
                 children: [
-                  TextField(
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Enter your email address',
-                    ),
+                  const Text(
+                    'Send a password reset verification code to your registered email address.',
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton(
@@ -592,23 +596,25 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
   }
 
   Future<void> _sendCode() async {
-    if (_emailCtrl.text.trim().isEmpty) {
-      setState(() => _error = 'Enter your email address.');
+    final email = _registeredEmail;
+    if (email.isEmpty) {
+      setState(() => _error = 'No registered email address was found.');
       return;
     }
     await _post(
       '/Auth/send-reset-code',
-      {'email': _emailCtrl.text.trim()},
+      {'email': email},
       onSuccess: () => setState(() {
         _step = 1;
-        _success = 'Verification code sent.';
+        _success =
+            'A verification code has been sent to your registered email address.';
       }),
     );
   }
 
   Future<void> _verifyCode() async {
     await _post('/Auth/verify-reset-code', {
-      'email': _emailCtrl.text.trim(),
+      'email': _registeredEmail,
       'code': _codeCtrl.text.trim(),
     }, onSuccess: () => setState(() => _step = 2));
   }
@@ -625,7 +631,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
     await _post(
       '/Auth/change-password',
       {
-        'email': _emailCtrl.text.trim(),
+        'email': _registeredEmail,
         'code': _codeCtrl.text.trim(),
         'newPassword': _newPasswordCtrl.text,
       },
@@ -635,7 +641,6 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
         );
         setState(() {
           _step = 0;
-          _emailCtrl.clear();
           _codeCtrl.clear();
           _newPasswordCtrl.clear();
           _confirmPasswordCtrl.clear();
@@ -643,6 +648,8 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
       },
     );
   }
+
+  String get _registeredEmail => AuthService.currentUser?.email.trim() ?? '';
 
   Future<void> _post(
     String path,

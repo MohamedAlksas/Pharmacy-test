@@ -89,8 +89,8 @@ class _ReportsPageState extends State<ReportsPage> {
                       provider.lowStockCount.toString(),
                     ),
                     _buildPdfKpi(
-                      'Total Alerts',
-                      AlertService.getAllAlerts().length.toString(),
+                      'Critical Alerts',
+                      provider.getCriticalAlertsCount().toString(),
                     ),
                   ],
                 ),
@@ -231,7 +231,7 @@ class _ReportsPageState extends State<ReportsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final provider = ProductProvider.of(context);
     final allMaterials = provider.products;
-    final totalAlerts = AlertService.getAllAlerts().length;
+    final criticalAlertsCount = provider.getCriticalAlertsCount();
 
     // Build unique category list
     final categories = allMaterials.map((m) => m.category).toSet().toList()
@@ -355,10 +355,10 @@ class _ReportsPageState extends State<ReportsPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildKpiCard(
-                    'Total Alerts',
-                    totalAlerts.toString(),
+                    'Critical Alerts',
+                    criticalAlertsCount.toString(),
                     isDark,
-                    totalAlerts > 0 ? const Color(0xFFDC3545) : null,
+                    criticalAlertsCount > 0 ? const Color(0xFFDC3545) : null,
                   ),
                 ),
               ],

@@ -33,6 +33,8 @@ class ProductProvider extends ChangeNotifier {
     return days > 0 && days <= 30;
   }).length;
 
+  int getCriticalAlertsCount() => expiredCount + expiringSoonCount;
+
   int get lowStockCount =>
       _products.where((product) => product.quantity < 100).length;
 

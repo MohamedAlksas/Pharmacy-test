@@ -182,7 +182,7 @@ class _InventoryPageState extends State<InventoryPage> {
               return DataRow(
                 cells: [
                   DataCell(_productSummary(product)),
-                  DataCell(Text(product.quantity.toString())),
+                  DataCell(Text(_databaseQuantityText(product))),
                   DataCell(Text(product.unit.isEmpty ? '-' : product.unit)),
                   DataCell(_availabilityChip(product.isAvailable)),
                   DataCell(Text(_formatDate(product.expiryDate))),
@@ -478,7 +478,7 @@ class _InventoryPageState extends State<InventoryPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _detailRow('SKU', product.sku),
-            _detailRow('Quantity', product.quantity.toString()),
+            _detailRow('Quantity', _databaseQuantityText(product)),
             _detailRow('Unit', product.unit),
             _detailRow('Log Number', product.lot),
             _detailRow('Storage', product.location),
@@ -517,6 +517,10 @@ class _InventoryPageState extends State<InventoryPage> {
         ],
       ),
     );
+  }
+
+  String _databaseQuantityText(MaterialModel product) {
+    return product.quantity.toString();
   }
 
   bool _matchesFilters(MaterialModel product) {

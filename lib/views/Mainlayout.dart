@@ -78,11 +78,9 @@ class _MainLayoutState extends State<MainLayout> {
         : Colors.green;
     final fullName = AuthService.currentUser?.fullName ?? '';
 
-    final expiredCount = provider.expiredCount;
-    final expiringSoonCount = provider.expiringSoonCount;
+    final criticalCount = provider.getCriticalAlertsCount();
     final lowStockCount = provider.lowStockCount;
-    final criticalCount = expiredCount + expiringSoonCount;
-    final totalAlerts = criticalCount + lowStockCount;
+    final hasAnyAlerts = criticalCount > 0 || lowStockCount > 0;
 
     return Scaffold(
       body: Row(
@@ -185,9 +183,8 @@ class _MainLayoutState extends State<MainLayout> {
                   ),
                 ),
 
-                if (AuthService.isWarehouseManager && totalAlerts > 0)
+                if (AuthService.isWarehouseManager && hasAnyAlerts)
                   _alertSummaryPanel(
-                    totalAlerts: totalAlerts,
                     criticalCount: criticalCount,
                     lowStockCount: lowStockCount,
                     isDark: isDark,
@@ -262,7 +259,6 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   Widget _alertSummaryPanel({
-    required int totalAlerts,
     required int criticalCount,
     required int lowStockCount,
     required bool isDark,
@@ -287,7 +283,7 @@ class _MainLayoutState extends State<MainLayout> {
               ),
               const SizedBox(width: 5),
               Text(
-                '$totalAlerts Active Alert${totalAlerts == 1 ? '' : 's'}',
+                '$criticalCount Critical Alert${criticalCount == 1 ? '' : 's'}',
                 style: const TextStyle(
                   color: Colors.red,
                   fontWeight: FontWeight.w700,

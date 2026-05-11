@@ -35,12 +35,12 @@ class _DashboardPageState extends State<DashboardPage> {
     final provider = ProductProvider.of(context);
     final expiringSoonCount = provider.expiringSoonCount;
     final lowStockCount = provider.lowStockCount;
+    final criticalAlertsCount = provider.getCriticalAlertsCount();
     final criticalAlerts = AlertService.getCriticalAlerts();
-    final totalAlerts = AlertService.getAllAlerts().length;
     final unreadNotifications = NotificationService.getUnread();
     final bellCount = AuthService.isSupervisor
         ? unreadNotifications.length
-        : totalAlerts;
+        : criticalAlertsCount;
     final recentMaterials = _recentMaterials(provider.products);
     final roleColor = AuthService.isWarehouseManager
         ? Colors.blue
@@ -187,10 +187,12 @@ class _DashboardPageState extends State<DashboardPage> {
                                 const SizedBox(width: 12),
                                 _kpiCard(
                                   context,
-                                  'Total Alerts',
-                                  totalAlerts.toString(),
+                                  'Critical Alerts',
+                                  criticalAlertsCount.toString(),
                                   icon: Icons.notifications_active,
-                                  color: totalAlerts > 0 ? Colors.red : null,
+                                  color: criticalAlertsCount > 0
+                                      ? Colors.red
+                                      : null,
                                 ),
                               ],
                             ],
@@ -260,7 +262,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 style: TextStyle(fontWeight: FontWeight.w700),
                               ),
                               const Spacer(),
-                              if (criticalAlerts.isNotEmpty)
+                              if (criticalAlertsCount > 0)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -271,7 +273,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    criticalAlerts.length.toString(),
+                                    criticalAlertsCount.toString(),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -632,7 +634,10 @@ class _DashboardPageState extends State<DashboardPage> {
                       Navigator.pop(ctx);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const UserInfoPage()),
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const UserInfoPage(showBackButton: true),
+                        ),
                       );
                     },
                     child: const Text('More ->'),
