@@ -364,11 +364,18 @@ class _InventoryPageState extends State<InventoryPage> {
       ),
     );
 
+    // Determine the remaining quantity from the body that was sent to the API.
+    final remainingQty = result.body['quantity'] as int? ?? -1;
+    final outOfStock = remainingQty == 0;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${result.quantity} units of ${result.product.name} exported successfully.',
+          outOfStock
+              ? '${result.quantity} units of ${result.product.name} exported. Item is now out of stock and marked Unavailable.'
+              : '${result.quantity} units of ${result.product.name} exported successfully.',
         ),
+        backgroundColor: outOfStock ? Colors.orange : null,
       ),
     );
   }

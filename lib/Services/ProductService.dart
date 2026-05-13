@@ -46,10 +46,19 @@ class ProductService {
     String id,
     Map<String, dynamic> body,
   ) async {
-    final response = await _patch(Uri.parse('$_baseUrl/$id'), body);
+    // Try PATCH first; if the server returns 405 (Method Not Allowed) fall
+    // back to PUT — ASP.NET backends vary in which verb they expose.
+    http.Response response = await _patch(Uri.parse('$_baseUrl/$id'), body);
+
+    if (response.statusCode == 405) {
+      response = await _put(Uri.parse('$_baseUrl/$id'), body);
+    }
+
     final decoded = _decodeBody(response.body);
 
-    if (response.statusCode == 200 || response.statusCode == 204) {
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 204) {
       return;
     }
 
@@ -91,6 +100,12 @@ class ProductService {
   static Future<http.Response> _patch(Uri uri, Map<String, dynamic> body) {
     return http
         .patch(uri, headers: AuthService.authHeaders, body: jsonEncode(body))
+        .timeout(const Duration(seconds: 15));
+  }
+
+  static Future<http.Response> _put(Uri uri, Map<String, dynamic> body) {
+    return http
+        .put(uri, headers: AuthService.authHeaders, body: jsonEncode(body))
         .timeout(const Duration(seconds: 15));
   }
 

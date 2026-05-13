@@ -12,6 +12,12 @@ class ProductProvider extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
+  // Stores confirmed server-writes that the backend hasn't reflected yet in
+  // its GET response (read-after-write lag).  Applied after every fetch —
+  // including manual refresh — until the server itself returns the correct
+  // value, at which point the override is automatically removed.
+  final Map<String, Map<String, dynamic>> _pendingOverrides = {};
+
   List<MaterialModel> get products => UnmodifiableListView(_products);
   bool get loading => _loading;
   String? get error => _error;
@@ -71,7 +77,21 @@ class ProductProvider extends ChangeNotifier {
   Future<String?> updateProduct(String id, Map<String, dynamic> body) async {
     try {
       await ProductService.updateProduct(id, body);
-      await _refreshProductsAfterMutation();
+
+      // Register a pending override so every subsequent fetch (including
+      // manual refresh) keeps showing the correct values until the server
+      // catches up and returns them itself.
+      final expectedQty = body['quantity'] as int?;
+      final expectedAvail = body['isAvailable'] as bool?;
+      if (expectedQty != null || expectedAvail != null) {
+        _pendingOverrides[id] = {
+          if (expectedQty != null) 'quantity': expectedQty,
+          if (expectedAvail != null) 'isAvailable': expectedAvail,
+        };
+      }
+
+      await _replaceProductsFromApi();
+      notifyListeners();
       return null;
     } catch (e) {
       return _handleMutationError(e);
@@ -128,6 +148,7 @@ class ProductProvider extends ChangeNotifier {
     _products = [];
     _loading = false;
     _error = null;
+    _pendingOverrides.clear();
     _syncDerivedState();
     if (notify) {
       notifyListeners();
@@ -145,7 +166,37 @@ class ProductProvider extends ChangeNotifier {
 
   Future<void> _replaceProductsFromApi() async {
     _products = await _fetchProductsFromApi();
+    _applyPendingOverrides();
     _syncDerivedState();
+  }
+
+  // After every fetch, re-apply any writes the server hasn't committed yet.
+  // Once the server returns the correct value we drop the override so it
+  // doesn't interfere with legitimate future changes.
+  void _applyPendingOverrides() {
+    if (_pendingOverrides.isEmpty) return;
+    for (int i = 0; i < _products.length; i++) {
+      final overrides = _pendingOverrides[_products[i].id];
+      if (overrides == null) continue;
+
+      final expectedQty = overrides['quantity'] as int?;
+      final expectedAvail = overrides['isAvailable'] as bool?;
+
+      final serverMatchesWrite =
+          (expectedQty == null || _products[i].quantity == expectedQty) &&
+          (expectedAvail == null || _products[i].isAvailable == expectedAvail);
+
+      if (serverMatchesWrite) {
+        // Server caught up — remove the override.
+        _pendingOverrides.remove(_products[i].id);
+      } else {
+        // Server still behind — keep overriding the local copy.
+        _products[i] = _products[i].copyWith(
+          quantity: expectedQty ?? _products[i].quantity,
+          isAvailable: expectedAvail ?? _products[i].isAvailable,
+        );
+      }
+    }
   }
 
   Future<void> _refreshProductsAfterMutation() async {

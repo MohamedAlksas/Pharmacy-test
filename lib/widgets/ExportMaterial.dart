@@ -64,14 +64,26 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
     }
 
     final quantity = int.parse(_quantityController.text.trim());
+
+    // Cannot export from an already empty item
+    if (product.quantity == 0) {
+      setState(() => _inlineError = 'This item is already out of stock');
+      return;
+    }
+
+    // Cannot export more than current stock
     if (quantity > product.quantity) {
       setState(() => _inlineError = 'Export quantity exceeds available stock');
       return;
     }
 
-    final nextQuantity = (product.quantity - quantity).clamp(0, product.quantity);
-    final nextIsAvailable = nextQuantity > 0;
+    // quantity == product.quantity → nextQuantity = 0 → isAvailable = false
+    final int nextQuantity = product.quantity - quantity;
+    final bool nextIsAvailable = nextQuantity > 0;
 
+    // Build the body with all fields the API needs.
+    // categoryId is omitted when 0 (API doesn't return it in GET, so model
+    // stores 0 as fallback — sending 0 back causes backend errors).
     final body = <String, dynamic>{
       'materialName': product.name,
       'material_SKU': product.sku,
@@ -81,7 +93,9 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
       'expiryDate': product.expiryDate,
       'storageLocation': product.location,
       'isAvailable': nextIsAvailable,
-      'categoryId': product.categoryId,
+      if (product.categoryId > 0) 'categoryId': product.categoryId,
+      if (product.category.isNotEmpty && product.category != 'Uncategorized')
+        'categoryName': product.category,
     };
     Navigator.pop(
       context,
