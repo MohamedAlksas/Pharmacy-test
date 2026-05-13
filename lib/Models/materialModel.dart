@@ -104,7 +104,7 @@ class MaterialModel {
       'logNumber': lot,
       'expiryDate': expiryDate,
       'storageLocation': location,
-      'isAvailable': isAvailable,
+      'isAvailable': quantity > 0 && isAvailable,
       'categoryId': categoryId,
     };
   }

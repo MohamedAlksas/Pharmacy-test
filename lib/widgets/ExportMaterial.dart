@@ -64,14 +64,25 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
     }
 
     final quantity = int.parse(_quantityController.text.trim());
-    final nextQuantity = product.quantity - quantity;
-    if (nextQuantity < 0) {
+    if (quantity > product.quantity) {
       setState(() => _inlineError = 'Export quantity exceeds available stock');
       return;
     }
 
-    final body = product.toApiBody();
-    body['quantity'] = nextQuantity;
+    final nextQuantity = (product.quantity - quantity).clamp(0, product.quantity);
+    final nextIsAvailable = nextQuantity > 0;
+
+    final body = <String, dynamic>{
+      'materialName': product.name,
+      'material_SKU': product.sku,
+      'quantity': nextQuantity,
+      'unit': product.unit,
+      'logNumber': product.lot,
+      'expiryDate': product.expiryDate,
+      'storageLocation': product.location,
+      'isAvailable': nextIsAvailable,
+      'categoryId': product.categoryId,
+    };
     Navigator.pop(
       context,
       ExportMaterialResult(product: product, quantity: quantity, body: body),
