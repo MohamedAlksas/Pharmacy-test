@@ -270,7 +270,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
     final payload = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => const AddMaterialDialog(),
+      builder: (_) => AddMaterialDialog(provider: provider),
     );
 
     if (payload == null) {

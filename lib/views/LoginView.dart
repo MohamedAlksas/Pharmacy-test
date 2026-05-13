@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
+import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/main.dart';
 import 'package:graduation_project/views/Mainlayout.dart';
 
@@ -13,36 +15,60 @@ class Loginview extends StatelessWidget {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (context, mode, _) {
-        return ValueListenableBuilder<int>(
-          valueListenable: AuthService.sessionChanges,
-          builder: (context, sessionTick, child) {
-            final authenticated = AuthService.isAuthenticated;
+        return ValueListenableBuilder<AppLanguage>(
+          valueListenable: languageNotifier,
+          builder: (context, lang, _) {
+            return ValueListenableBuilder<int>(
+              valueListenable: AuthService.sessionChanges,
+              builder: (context, sessionTick, child) {
+                final authenticated = AuthService.isAuthenticated;
+                final tr = AppLocalizations.of(lang);
 
-            return MaterialApp(
-              key: ValueKey('app-${mode.name}-$authenticated'),
-              debugShowCheckedModeBanner: false,
-              title: 'Pharmacy Logistics',
-              themeMode: mode,
-              theme: ThemeData(
-                useMaterial3: true,
-                brightness: Brightness.light,
-                scaffoldBackgroundColor: const Color(0xFFF2F7F8),
-                colorScheme: ColorScheme.fromSeed(
-                  seedColor: const Color(0xFF0A6B6E),
-                ),
-              ),
-              darkTheme: ThemeData(
-                useMaterial3: true,
-                brightness: Brightness.dark,
-                scaffoldBackgroundColor: const Color(0xFF0E1418),
-                colorScheme: ColorScheme.fromSeed(
-                  seedColor: const Color(0xFF18B6B6),
-                  brightness: Brightness.dark,
-                ),
-              ),
-              home: authenticated
-                  ? const MainLayout(initialIndex: 0)
-                  : const LoginPage(),
+                return MaterialApp(
+                  key: ValueKey('app-${mode.name}-$authenticated-${lang.name}'),
+                  debugShowCheckedModeBanner: false,
+                  title: tr.appTitle,
+                  themeMode: mode,
+                  // ── RTL / LTR ──────────────────────────────────────────────
+                  locale: lang == AppLanguage.ar
+                      ? const Locale('ar')
+                      : const Locale('en'),
+                  supportedLocales: const [Locale('en'), Locale('ar')],
+                  localizationsDelegates: const [
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  builder: (context, child) {
+                    return Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: child!,
+                    );
+                  },
+                  theme: ThemeData(
+                    useMaterial3: true,
+                    brightness: Brightness.light,
+                    scaffoldBackgroundColor: const Color(0xFFF2F7F8),
+                    colorScheme: ColorScheme.fromSeed(
+                      seedColor: const Color(0xFF0A6B6E),
+                    ),
+                    fontFamily: lang == AppLanguage.ar ? 'Cairo' : null,
+                  ),
+                  darkTheme: ThemeData(
+                    useMaterial3: true,
+                    brightness: Brightness.dark,
+                    scaffoldBackgroundColor: const Color(0xFF0E1418),
+                    colorScheme: ColorScheme.fromSeed(
+                      seedColor: const Color(0xFF18B6B6),
+                      brightness: Brightness.dark,
+                    ),
+                    fontFamily: lang == AppLanguage.ar ? 'Cairo' : null,
+                  ),
+                  home: authenticated
+                      ? const MainLayout(initialIndex: 0)
+                      : const LoginPage(),
+                );
+              },
             );
           },
         );
@@ -106,10 +132,9 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Future<void> _attemptLogin() async {
+    final tr = context.tr;
     setState(() => _errorText = null);
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
 
@@ -118,9 +143,7 @@ class _LoginPageState extends State<LoginPage>
       _passwordCtrl.text,
     );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {
       _loading = false;
@@ -178,6 +201,7 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildLoginCard(BuildContext context) {
+    final tr = context.tr;
     return Material(
       elevation: 28,
       borderRadius: BorderRadius.circular(18),
@@ -192,9 +216,9 @@ class _LoginPageState extends State<LoginPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'PHARMACY LOGISTICS',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.6,
@@ -202,9 +226,9 @@ class _LoginPageState extends State<LoginPage>
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'WAREHOUSE MANAGEMENT SYSTEM',
-                style: TextStyle(
+              Text(
+                tr.appSubtitle,
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF1CA0A5),
@@ -214,21 +238,21 @@ class _LoginPageState extends State<LoginPage>
               _buildLogoCircle(),
               const SizedBox(height: 24),
               _buildLabeledField(
-                label: 'Email',
+                label: tr.email,
                 child: TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter your email',
+                  decoration: InputDecoration(
+                    hintText: tr.enterEmail,
                     border: InputBorder.none,
-                    prefixIcon: Icon(Icons.email_outlined, size: 20),
+                    prefixIcon: const Icon(Icons.email_outlined, size: 20),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your email';
+                      return tr.enterYourEmail;
                     }
                     if (!value.contains('@')) {
-                      return 'Enter a valid email';
+                      return tr.invalidEmail;
                     }
                     return null;
                   },
@@ -237,31 +261,28 @@ class _LoginPageState extends State<LoginPage>
               ),
               const SizedBox(height: 14),
               _buildLabeledField(
-                label: 'Password',
+                label: tr.password,
                 child: TextFormField(
                   controller: _passwordCtrl,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    hintText: 'Enter your password',
+                    hintText: tr.enterPassword,
                     border: InputBorder.none,
                     prefixIcon: const Icon(Icons.lock_outline, size: 20),
                     suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
                         size: 20,
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
                     ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter password';
+                      return tr.required;
                     }
                     return null;
                   },
@@ -269,45 +290,9 @@ class _LoginPageState extends State<LoginPage>
                   onFieldSubmitted: (_) => _attemptLogin(),
                 ),
               ),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _attemptLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1CA0A5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 6,
-                    shadowColor: Colors.black.withOpacity(0.25),
-                  ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 240),
-                    child: _loading
-                        ? const SizedBox(
-                            key: ValueKey('loader'),
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            key: ValueKey('label'),
-                            'LOGIN',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 6),
               if (_errorText != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -317,47 +302,78 @@ class _LoginPageState extends State<LoginPage>
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.redAccent,
-                        size: 18,
-                      ),
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorText!,
                           style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontSize: 13,
-                          ),
+                              color: Colors.red, fontSize: 13),
                         ),
                       ),
                     ],
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Don't have an account? ",
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
-                  ),
-                  GestureDetector(
-                    onTap: _openRegisterSheet,
-                    child: const Text(
-                      'Register',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1CA0A5),
-                      ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _attemptLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0A6B6E),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                ],
+                  child: _loading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          tr.signIn,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _openRegisterSheet,
+                child: Text(tr.registerNewUser),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoCircle() {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFF0A6B6E).withOpacity(0.1),
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/pharmacy faculty logo.png',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(
+            Icons.local_pharmacy,
+            size: 40,
+            color: Color(0xFF0A6B6E),
           ),
         ),
       ),
@@ -370,68 +386,22 @@ class _LoginPageState extends State<LoginPage>
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
-            color: const Color(0xFFF6F7FB),
+            color: Colors.grey[100],
             borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
           ),
           child: child,
         ),
       ],
     );
   }
+}
 
-  Widget _buildLogoCircle() {
-  return Container(
-    height: 120,  // كان 76
-    width: 120,   // كان 76
-    decoration: BoxDecoration(
-      color: Colors.white,
-      shape: BoxShape.circle,
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.06),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
-        ),
-      ],
-    ),
-    child: Center(
-      child: Container(
-        height: 100,  // كان 58
-        width: 100,   // كان 58
-        decoration: const BoxDecoration(
-          color: Color(0xFFE6FBFC),
-          shape: BoxShape.circle,
-        ),
-        child: ClipOval(
-          child: Image.asset(
-            'assets/pharmacy faculty logo.png',
-            width: 100,   // كان 58
-            height: 100,  // كان 58
-            fit: BoxFit.cover,
-          ),
-        ),
-      ),
-    ),
-  );
-}
-}
+// ─── Register sheet ───────────────────────────────────────────────────────────
 
 class _RegisterSheet extends StatefulWidget {
   const _RegisterSheet();
@@ -442,170 +412,146 @@ class _RegisterSheet extends StatefulWidget {
 
 class _RegisterSheetState extends State<_RegisterSheet> {
   final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  final _fullNameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
 
+  String _selectedRole = 'user';
   bool _loading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   String? _errorText;
   String? _successText;
-  String _selectedRole = 'user';
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
-    _fullNameCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    final tr = context.tr;
     setState(() {
       _errorText = null;
       _successText = null;
     });
-
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
 
-    final error = _selectedRole == 'admin'
-        ? await AuthService.registerAdmin(
-            email: _emailCtrl.text.trim(),
-            password: _passwordCtrl.text,
-            fullName: _fullNameCtrl.text.trim(),
-            phoneNumber: _phoneCtrl.text.trim(),
-          )
-        : await AuthService.registerUser(
-            email: _emailCtrl.text.trim(),
-            password: _passwordCtrl.text,
-            fullName: _fullNameCtrl.text.trim(),
-            phoneNumber: _phoneCtrl.text.trim(),
-          );
-
-    if (!mounted) {
-      return;
+    final String? error;
+    if (_selectedRole == 'admin') {
+      error = await AuthService.registerAdmin(
+        email: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text,
+        fullName: _nameCtrl.text.trim(),
+        phoneNumber: _phoneCtrl.text.trim(),
+      );
+    } else {
+      error = await AuthService.registerUser(
+        email: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text,
+        fullName: _nameCtrl.text.trim(),
+        phoneNumber: _phoneCtrl.text.trim(),
+      );
     }
 
+    if (!mounted) return;
     setState(() {
       _loading = false;
-      _errorText = error;
-      _successText = error == null
-          ? 'Account created successfully! You can now log in.'
-          : null;
+      if (error != null) {
+        _errorText = error;
+      } else {
+        _successText = tr.success;
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-
+    final tr = context.tr;
     return Padding(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomPadding),
-      child: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+              Text(
+                tr.registerNewUser,
+                style: const TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Create Account',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Fill in the details below to register.',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Account Type',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
+              // Role chips
               Row(
                 children: [
                   _roleChip(
-                    label: 'Supervisor',
+                    label: tr.supervisor,
                     value: 'user',
-                    icon: Icons.supervised_user_circle_outlined,
+                    icon: Icons.person_outline,
                     color: Colors.green,
                   ),
                   const SizedBox(width: 10),
                   _roleChip(
-                    label: 'Manager (Admin)',
+                    label: tr.manager,
                     value: 'admin',
                     icon: Icons.admin_panel_settings_outlined,
                     color: Colors.blue,
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _field(
-                controller: _fullNameCtrl,
-                label: 'Full Name',
-                hint: 'e.g. Ahmed Mohamed',
-                icon: Icons.badge_outlined,
+                controller: _nameCtrl,
+                label: tr.fullName,
+                hint: tr.fullName,
+                icon: Icons.person_outline,
               ),
               const SizedBox(height: 12),
               _field(
                 controller: _emailCtrl,
-                label: 'Email',
-                hint: 'your@email.com',
+                label: tr.email,
+                hint: tr.enterEmail,
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Required';
-                  }
-                  if (!value.contains('@')) {
-                    return 'Enter a valid email';
-                  }
+                  if (value == null || value.trim().isEmpty) return tr.required;
+                  if (!value.contains('@')) return tr.invalidEmail;
                   return null;
                 },
               ),
               const SizedBox(height: 12),
               _field(
                 controller: _phoneCtrl,
-                label: 'Phone Number',
+                label: tr.phoneNumber,
                 hint: '+20 123 456 7890',
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Required';
-                  }
-                  if (value.trim().length < 7) {
-                    return 'Enter a valid phone number';
-                  }
+                  if (value == null || value.trim().isEmpty) return tr.required;
+                  if (value.trim().length < 7) return tr.validPhone;
                   return null;
                 },
               ),
               const SizedBox(height: 12),
               _field(
                 controller: _passwordCtrl,
-                label: 'Password',
-                hint: 'Min. 6 characters',
+                label: tr.password,
+                hint: tr.minSixChars,
                 icon: Icons.lock_outline,
                 obscure: _obscurePassword,
                 suffixIcon: IconButton(
@@ -615,24 +561,19 @@ class _RegisterSheetState extends State<_RegisterSheet> {
                         : Icons.visibility_outlined,
                     size: 20,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
                 validator: (value) {
-                  if (value == null || value.length < 6) {
-                    return 'At least 6 characters';
-                  }
+                  if (value == null || value.length < 6) return tr.atLeast6Chars;
                   return null;
                 },
               ),
               const SizedBox(height: 12),
               _field(
                 controller: _confirmCtrl,
-                label: 'Confirm Password',
-                hint: 'Repeat your password',
+                label: tr.confirmPassword,
+                hint: tr.repeatPassword,
                 icon: Icons.lock_outline,
                 obscure: _obscureConfirm,
                 suffixIcon: IconButton(
@@ -642,32 +583,25 @@ class _RegisterSheetState extends State<_RegisterSheet> {
                         : Icons.visibility_outlined,
                     size: 20,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscureConfirm = !_obscureConfirm;
-                    });
-                  },
+                  onPressed: () =>
+                      setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
                 validator: (value) {
-                  if (value != _passwordCtrl.text) {
-                    return 'Passwords do not match';
-                  }
+                  if (value != _passwordCtrl.text) return tr.passwordsDoNotMatch;
                   return null;
                 },
               ),
               const SizedBox(height: 20),
               if (_errorText != null)
                 _banner(
-                  text: _errorText!,
-                  color: Colors.red,
-                  icon: Icons.error_outline,
-                ),
+                    text: _errorText!,
+                    color: Colors.red,
+                    icon: Icons.error_outline),
               if (_successText != null)
                 _banner(
-                  text: _successText!,
-                  color: Colors.green,
-                  icon: Icons.check_circle_outline,
-                ),
+                    text: _successText!,
+                    color: Colors.green,
+                    icon: Icons.check_circle_outline),
               if (_errorText != null || _successText != null)
                 const SizedBox(height: 12),
               SizedBox(
@@ -690,9 +624,12 @@ class _RegisterSheetState extends State<_RegisterSheet> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'CREATE ACCOUNT',
-                          style: TextStyle(fontWeight: FontWeight.w700),
+                      : Text(
+                          tr.createAccount,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                 ),
               ),
@@ -702,7 +639,7 @@ class _RegisterSheetState extends State<_RegisterSheet> {
                   width: double.infinity,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Back to Login'),
+                    child: Text(tr.backToLogin),
                   ),
                 ),
               ],
@@ -720,16 +657,12 @@ class _RegisterSheetState extends State<_RegisterSheet> {
     required Color color,
   }) {
     final selected = _selectedRole == value;
-
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedRole = value;
-        });
-      },
+      onTap: () => setState(() => _selectedRole = value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? color.withOpacity(0.12) : Colors.grey[100],
           borderRadius: BorderRadius.circular(10),
@@ -747,7 +680,8 @@ class _RegisterSheetState extends State<_RegisterSheet> {
               label,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight:
+                    selected ? FontWeight.w600 : FontWeight.normal,
                 color: selected ? color : Colors.black54,
               ),
             ),
@@ -767,13 +701,13 @@ class _RegisterSheetState extends State<_RegisterSheet> {
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
+    final tr = context.tr;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -783,18 +717,14 @@ class _RegisterSheetState extends State<_RegisterSheet> {
             hintText: hint,
             prefixIcon: Icon(icon, size: 20),
             suffixIcon: suffixIcon,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10)),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 14,
-            ),
+                horizontal: 12, vertical: 14),
           ),
-          validator:
-              validator ??
+          validator: validator ??
               (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Required';
-                }
+                if (value == null || value.trim().isEmpty) return tr.required;
                 return null;
               },
         ),
@@ -819,7 +749,8 @@ class _RegisterSheetState extends State<_RegisterSheet> {
           Icon(icon, color: color, size: 18),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(text, style: TextStyle(color: color, fontSize: 13)),
+            child: Text(text,
+                style: TextStyle(color: color, fontSize: 13)),
           ),
         ],
       ),

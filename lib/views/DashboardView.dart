@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/ProductProvider.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
+import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/Models/materialModel.dart';
 import 'package:graduation_project/Services/notificationService.dart';
 import 'package:graduation_project/Services/alertService.dart';
+import 'package:graduation_project/main.dart';
 import 'package:graduation_project/views/UserInfo.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -32,6 +34,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final tr = context.tr;
     final provider = ProductProvider.of(context);
     final expiringSoonCount = provider.expiringSoonCount;
     final lowStockCount = provider.lowStockCount;
@@ -42,9 +45,8 @@ class _DashboardPageState extends State<DashboardPage> {
         ? unreadNotifications.length
         : criticalAlertsCount;
     final recentMaterials = _recentMaterials(provider.products);
-    final roleColor = AuthService.isWarehouseManager
-        ? Colors.blue
-        : Colors.green;
+    final roleColor =
+        AuthService.isWarehouseManager ? Colors.blue : Colors.green;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
@@ -66,8 +68,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             Expanded(
                               child: TextField(
                                 decoration: InputDecoration(
-                                  hintText:
-                                      'Search for materials, orders, or reports',
+                                  hintText: tr.searchHint,
                                   prefixIcon: const Icon(Icons.search),
                                   filled: true,
                                   fillColor: Theme.of(context).cardColor,
@@ -134,10 +135,10 @@ class _DashboardPageState extends State<DashboardPage> {
                         // Title
                         Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'Warehouse Overview',
-                                style: TextStyle(
+                                tr.warehouseOverview,
+                                style: const TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -146,7 +147,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             ElevatedButton.icon(
                               onPressed: () => provider.loadProducts(),
                               icon: const Icon(Icons.refresh),
-                              label: const Text('Refresh'),
+                              label: Text(tr.refresh),
                             ),
                           ],
                         ),
@@ -159,7 +160,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             children: [
                               _kpiCard(
                                 context,
-                                'Total Materials',
+                                tr.totalMaterials,
                                 provider.totalProducts.toString(),
                                 icon: Icons.grid_view,
                               ),
@@ -167,7 +168,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 const SizedBox(width: 12),
                                 _kpiCard(
                                   context,
-                                  'Nearing Expiry',
+                                  tr.nearingExpiry,
                                   expiringSoonCount.toString(),
                                   icon: Icons.hourglass_bottom,
                                   color: expiringSoonCount > 0
@@ -177,7 +178,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 const SizedBox(width: 12),
                                 _kpiCard(
                                   context,
-                                  'Low Stock Items',
+                                  tr.lowStockItemsTitle,
                                   lowStockCount.toString(),
                                   icon: Icons.warning_amber_rounded,
                                   color: lowStockCount > 0
@@ -187,7 +188,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 const SizedBox(width: 12),
                                 _kpiCard(
                                   context,
-                                  'Critical Alerts',
+                                  tr.criticalAlertsTitle,
                                   criticalAlertsCount.toString(),
                                   icon: Icons.notifications_active,
                                   color: criticalAlertsCount > 0
@@ -207,13 +208,13 @@ class _DashboardPageState extends State<DashboardPage> {
                             borderRadius: BorderRadius.circular(12),
                             color: Theme.of(context).cardColor,
                           ),
-                          child: const Center(
-                            child: Text('Chart Visualization Placeholder'),
+                          child: Center(
+                            child: Text(tr.chartPlaceholder),
                           ),
                         ),
                         const SizedBox(height: 16),
 
-                        // Recent Activity (shows top materials from API)
+                        // Recent Activity
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
@@ -224,9 +225,10 @@ class _DashboardPageState extends State<DashboardPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Recent Materials',
-                                style: TextStyle(fontWeight: FontWeight.w700),
+                              Text(
+                                tr.recentMaterials,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 12),
                               ...recentMaterials.map(
@@ -234,7 +236,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                   children: [
                                     _materialRow(
                                       m.name,
-                                      '${m.quantity} units',
+                                      '${m.quantity} ${tr.unit.toLowerCase()}',
                                       m.expiryDate,
                                       m.category,
                                     ),
@@ -257,17 +259,16 @@ class _DashboardPageState extends State<DashboardPage> {
                         children: [
                           Row(
                             children: [
-                              const Text(
-                                'Critical Alerts',
-                                style: TextStyle(fontWeight: FontWeight.w700),
+                              Text(
+                                tr.criticalAlertsTitle,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
                               ),
                               const Spacer(),
                               if (criticalAlertsCount > 0)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
+                                      horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: Colors.red,
                                     borderRadius: BorderRadius.circular(12),
@@ -291,8 +292,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                 borderRadius: BorderRadius.circular(10),
                                 color: Theme.of(context).cardColor,
                               ),
-                              child: const Center(
-                                child: Text('No critical alerts'),
+                              child: Center(
+                                child: Text(tr.noCriticalAlerts),
                               ),
                             )
                           else
@@ -336,9 +337,8 @@ class _DashboardPageState extends State<DashboardPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: Theme.of(context).cardColor,
-        border: color != null
-            ? Border.all(color: color.withOpacity(0.3))
-            : null,
+        border:
+            color != null ? Border.all(color: color.withOpacity(0.3)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,17 +395,16 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 6),
                 Text(
                   body,
                   style: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[400]
-                        : Colors.grey[600],
+                    color:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
                     fontSize: 12,
                   ),
                   maxLines: 2,
@@ -451,6 +450,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _showNotifications() {
+    final tr = context.tr;
     if (AuthService.isSupervisor) {
       final notifications = NotificationService.getAll();
       showDialog(
@@ -462,14 +462,14 @@ class _DashboardPageState extends State<DashboardPage> {
                 const Icon(Icons.notifications_active, color: Colors.green),
                 const SizedBox(width: 12),
                 Text(
-                  'Notifications (${NotificationService.getUnread().length})',
+                  '${tr.notifications} (${NotificationService.getUnread().length})',
                 ),
               ],
             ),
             content: SizedBox(
               width: 460,
               child: notifications.isEmpty
-                  ? const Text('No notifications')
+                  ? Text(tr.noNotifications)
                   : ListView.builder(
                       shrinkWrap: true,
                       itemCount: notifications.length,
@@ -495,7 +495,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                     setState(() {});
                                     setDialogState(() {});
                                   },
-                                  child: const Text('Mark Read'),
+                                  child: Text(tr.markRead),
                                 ),
                         );
                       },
@@ -508,11 +508,11 @@ class _DashboardPageState extends State<DashboardPage> {
                   setState(() {});
                   Navigator.pop(ctx);
                 },
-                child: const Text('Mark All Read'),
+                child: Text(tr.markAllRead),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
+                child: Text(tr.close),
               ),
             ],
           ),
@@ -529,13 +529,13 @@ class _DashboardPageState extends State<DashboardPage> {
           children: [
             const Icon(Icons.notifications_active, color: Colors.red),
             const SizedBox(width: 12),
-            Text('Notifications (${alerts.length})'),
+            Text('${tr.notifications} (${alerts.length})'),
           ],
         ),
         content: SizedBox(
           width: 400,
           child: alerts.isEmpty
-              ? const Text('No active notifications')
+              ? Text(tr.noActiveNotifications)
               : ListView.builder(
                   shrinkWrap: true,
                   itemCount: alerts.length,
@@ -561,7 +561,7 @@ class _DashboardPageState extends State<DashboardPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+            child: Text(tr.close),
           ),
         ],
       ),
@@ -569,10 +569,11 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _showProfilePopup() {
+    final tr = context.tr;
     final user = AuthService.currentUser;
     final isManager = AuthService.isWarehouseManager;
     final roleColor = isManager ? Colors.blue : Colors.green;
-    final roleText = isManager ? 'Warehouse Manager' : 'Supervisor';
+    final roleText = isManager ? tr.warehouseManager : tr.supervisor;
 
     showDialog(
       context: context,
@@ -600,19 +601,15 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  user?.fullName ?? 'Unknown user',
+                  user?.fullName ?? tr.unknownUser,
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      fontSize: 18, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+                      horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: roleColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(20),
@@ -621,9 +618,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: Text(
                     roleText,
                     style: TextStyle(
-                      color: roleColor,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        color: roleColor, fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -640,7 +635,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       );
                     },
-                    child: const Text('More ->'),
+                    child: Text(tr.more),
                   ),
                 ),
               ],

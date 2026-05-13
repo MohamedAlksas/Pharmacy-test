@@ -4,8 +4,9 @@ import 'package:graduation_project/Models/materialModel.dart';
 
 class AddMaterialDialog extends StatefulWidget {
   final MaterialModel? initialProduct;
+  final ProductProvider provider;
 
-  const AddMaterialDialog({super.key, this.initialProduct});
+  const AddMaterialDialog({super.key, this.initialProduct, required this.provider});
 
   bool get isEditing => initialProduct != null;
 
@@ -114,7 +115,7 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
       return;
     }
 
-    final provider = ProductProvider.of(context, listen: false);
+    final provider = widget.provider;
     final product = provider.findById(selectedProduct.id) ?? selectedProduct;
     final addedQuantity = int.parse(_quantityController.text.trim());
     final body = product.toApiBody();
@@ -137,7 +138,7 @@ class _AddMaterialDialogState extends State<AddMaterialDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final provider = ProductProvider.of(context);
+    final provider = widget.provider;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(24),

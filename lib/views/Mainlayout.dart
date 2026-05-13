@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/ProductProvider.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
+import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/views/DashboardView.dart';
 import 'package:graduation_project/views/InventoryView.dart';
 import 'package:graduation_project/views/OrdersView.dart';
@@ -47,19 +48,19 @@ class _MainLayoutState extends State<MainLayout> {
     ];
   }
 
-  List<_MenuItem> _getMenuItems() {
+  List<_MenuItem> _getMenuItems(AppLocalizations tr) {
     if (AuthService.isSupervisor) {
       return [
-        _MenuItem(Icons.list_alt, 'Orders', 0),
-        _MenuItem(Icons.bar_chart, 'Reports', 1),
+        _MenuItem(Icons.list_alt, tr.orders, 0),
+        _MenuItem(Icons.bar_chart, tr.reports, 1),
       ];
     }
     return [
-      _MenuItem(Icons.dashboard, 'Dashboard', 0),
-      _MenuItem(Icons.inventory_2, 'Inventory', 1),
-      _MenuItem(Icons.bar_chart, 'Reports', 2),
-      _MenuItem(Icons.list_alt, 'Orders', 3),
-      _MenuItem(Icons.settings, 'Settings', 4),
+      _MenuItem(Icons.dashboard, tr.dashboard, 0),
+      _MenuItem(Icons.inventory_2, tr.inventory, 1),
+      _MenuItem(Icons.bar_chart, tr.reports, 2),
+      _MenuItem(Icons.list_alt, tr.orders, 3),
+      _MenuItem(Icons.settings, tr.settings, 4),
     ];
   }
 
@@ -67,176 +68,214 @@ class _MainLayoutState extends State<MainLayout> {
     await AuthService.logout();
   }
 
+  /// Toggle language between English and Arabic, persist choice.
+  Future<void> _toggleLanguage() async {
+    final next = languageNotifier.value == AppLanguage.en
+        ? AppLanguage.ar
+        : AppLanguage.en;
+    languageNotifier.value = next;
+    await saveLanguage(next);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final provider = ProductProvider.of(context);
-    final pages = _getPages();
-    final menuItems = _getMenuItems();
-    final roleColor = AuthService.isWarehouseManager
-        ? Colors.blue
-        : Colors.green;
-    final fullName = AuthService.currentUser?.fullName ?? '';
+    // Re-build sidebar whenever the language changes
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: languageNotifier,
+      builder: (context, lang, _) {
+        final tr = AppLocalizations.of(lang);
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final provider = ProductProvider.of(context);
+        final pages = _getPages();
+        final menuItems = _getMenuItems(tr);
+        final roleColor =
+            AuthService.isWarehouseManager ? Colors.blue : Colors.green;
+        final fullName = AuthService.currentUser?.fullName ?? '';
 
-    final criticalCount = provider.getCriticalAlertsCount();
-    final lowStockCount = provider.lowStockCount;
-    final hasAnyAlerts = criticalCount > 0 || lowStockCount > 0;
+        final criticalCount = provider.getCriticalAlertsCount();
+        final lowStockCount = provider.lowStockCount;
+        final hasAnyAlerts = criticalCount > 0 || lowStockCount > 0;
 
-    return Scaffold(
-      body: Row(
-        children: [
-          // ── Sidebar ──────────────────────────────────────────────────────
-          Container(
-            width: 220,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            color: isDark ? const Color(0xFF071014) : const Color(0xFFEAF2F3),
-            child: Column(
-              children: [
-                // App brand + user name
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 27, 
-                        backgroundColor: roleColor.withOpacity(0.16),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/pharmacy faculty logo.png',
-                            width: 50, 
-                            height: 50, 
-                            fit: BoxFit.cover,
+        return Scaffold(
+          body: Row(
+            children: [
+              // ── Sidebar ────────────────────────────────────────────────────
+              Container(
+                width: 220,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                color: isDark
+                    ? const Color(0xFF071014)
+                    : const Color(0xFFEAF2F3),
+                child: Column(
+                  children: [
+                    // App brand + user name
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 27,
+                            backgroundColor: roleColor.withOpacity(0.16),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/pharmacy faculty logo.png',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PharmaWarehouse',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tr.pharmaWarehouse,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                ),
+                                Text(
+                                  fullName,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark
+                                        ? Colors.white60
+                                        : Colors.black54,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
-                            Text(
-                              fullName,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isDark ? Colors.white60 : Colors.black54,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                // Role badge
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 14),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AuthService.isWarehouseManager
-                        ? Colors.blue.withOpacity(0.15)
-                        : Colors.green.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    AuthService.isWarehouseManager ? 'Manager' : 'Supervisor',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AuthService.isWarehouseManager
-                          ? Colors.blue
-                          : Colors.green,
                     ),
-                  ),
-                ),
 
-                const SizedBox(height: 12),
+                    const SizedBox(height: 6),
 
-                // Nav items
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    children: menuItems.map((item) {
-                      return _sidebarItem(
-                        item.icon,
-                        item.label,
-                        item.index,
-                        isDark,
-                      );
-                    }).toList(),
-                  ),
-                ),
-
-                if (AuthService.isWarehouseManager && hasAnyAlerts)
-                  _alertSummaryPanel(
-                    criticalCount: criticalCount,
-                    lowStockCount: lowStockCount,
-                    isDark: isDark,
-                  ),
-
-                const Divider(height: 1),
-
-                // Bottom toolbar
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          themeNotifier.value =
-                              themeNotifier.value == ThemeMode.dark
-                              ? ThemeMode.light
-                              : ThemeMode.dark;
-                        },
-                        icon: Icon(
-                          isDark ? Icons.light_mode : Icons.dark_mode,
-                          color: isDark ? Colors.white70 : Colors.black54,
-                        ),
-                        tooltip: 'Toggle theme',
+                    // Role badge
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AuthService.isWarehouseManager
+                            ? Colors.blue.withOpacity(0.15)
+                            : Colors.green.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => _logout(),
-                        icon: Icon(
-                          Icons.logout,
-                          color: isDark ? Colors.white70 : Colors.black54,
+                      child: Text(
+                        AuthService.isWarehouseManager
+                            ? tr.manager
+                            : tr.supervisor,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AuthService.isWarehouseManager
+                              ? Colors.blue
+                              : Colors.green,
                         ),
-                        tooltip: 'Logout',
                       ),
-                    ],
-                  ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Nav items
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        children: menuItems.map((item) {
+                          return _sidebarItem(
+                              item.icon, item.label, item.index, isDark);
+                        }).toList(),
+                      ),
+                    ),
+
+                    if (AuthService.isWarehouseManager && hasAnyAlerts)
+                      _alertSummaryPanel(
+                        tr: tr,
+                        criticalCount: criticalCount,
+                        lowStockCount: lowStockCount,
+                        isDark: isDark,
+                      ),
+
+                    const Divider(height: 1),
+
+                    // ── Bottom toolbar ─────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: [
+                          // Dark/light mode toggle
+                          IconButton(
+                            onPressed: () {
+                              themeNotifier.value =
+                                  themeNotifier.value == ThemeMode.dark
+                                      ? ThemeMode.light
+                                      : ThemeMode.dark;
+                            },
+                            icon: Icon(
+                              isDark ? Icons.light_mode : Icons.dark_mode,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
+                            tooltip: tr.toggleTheme,
+                          ),
+
+                          // ── Language toggle ────────────────────────────────
+                          IconButton(
+                            onPressed: _toggleLanguage,
+                            tooltip: tr.toggleLanguage,
+                            icon: Text(
+                              lang == AppLanguage.ar ? 'EN' : 'عربي',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? Colors.white70
+                                    : Colors.black54,
+                              ),
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          // Logout
+                          IconButton(
+                            onPressed: _logout,
+                            icon: Icon(
+                              Icons.logout,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
+                            tooltip: tr.logout,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+
+              // ── Page content ───────────────────────────────────────────────
+              Expanded(child: pages[_selectedIndex]),
+            ],
           ),
-
-          // ── Page content ─────────────────────────────────────────────────
-          Expanded(child: pages[_selectedIndex]),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _sidebarItem(IconData icon, String label, int index, bool isDark) {
+  Widget _sidebarItem(
+      IconData icon, String label, int index, bool isDark) {
     final selected = index == _selectedIndex;
-    final selectedColor = isDark ? Colors.lightBlueAccent : Colors.blueAccent;
+    final selectedColor =
+        isDark ? Colors.lightBlueAccent : Colors.blueAccent;
     final defaultColor = isDark ? Colors.white70 : Colors.black54;
     final textColor = selected
         ? selectedColor
@@ -254,12 +293,14 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       selected: selected,
       selectedTileColor: selectedColor.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       onTap: () => _onSelect(index),
     );
   }
 
   Widget _alertSummaryPanel({
+    required AppLocalizations tr,
     required int criticalCount,
     required int lowStockCount,
     required bool isDark,
@@ -277,14 +318,11 @@ class _MainLayoutState extends State<MainLayout> {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.red,
-                size: 15,
-              ),
+              const Icon(Icons.warning_amber_rounded,
+                  color: Colors.red, size: 15),
               const SizedBox(width: 5),
               Text(
-                '$criticalCount Critical Alert${criticalCount == 1 ? '' : 's'}',
+                tr.criticalAlerts(criticalCount),
                 style: const TextStyle(
                   color: Colors.red,
                   fontWeight: FontWeight.w700,
@@ -298,7 +336,7 @@ class _MainLayoutState extends State<MainLayout> {
             _alertSummaryRow(
               Icons.error_outline,
               Colors.red,
-              '$criticalCount expired / expiring soon',
+              tr.expiredExpiringSoon(criticalCount),
             ),
           ],
           if (lowStockCount > 0) ...[
@@ -306,7 +344,7 @@ class _MainLayoutState extends State<MainLayout> {
             _alertSummaryRow(
               Icons.inventory_2_outlined,
               Colors.orange,
-              '$lowStockCount low-stock item${lowStockCount == 1 ? '' : 's'}',
+              tr.lowStockItems(lowStockCount),
             ),
           ],
         ],
@@ -320,16 +358,11 @@ class _MainLayoutState extends State<MainLayout> {
         Icon(icon, color: color, size: 12),
         const SizedBox(width: 5),
         Expanded(
-          child: Text(text, style: TextStyle(color: color, fontSize: 11)),
+          child: Text(text,
+              style: TextStyle(color: color, fontSize: 11)),
         ),
       ],
     );
-  }
-
-  String _profileInitial(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return '?';
-    return trimmed.substring(0, 1).toUpperCase();
   }
 }
 
@@ -347,6 +380,7 @@ class OrdersPageWithPrint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tr = context.tr;
     return Column(
       children: [
         if (AuthService.isSupervisor)
@@ -359,7 +393,7 @@ class OrdersPageWithPrint extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Supervisor view — read-only. You may print orders.',
+                    tr.supervisorReadOnly,
                     style: TextStyle(color: Colors.blue[900]),
                   ),
                 ),
@@ -374,9 +408,9 @@ class OrdersPageWithPrint extends StatelessWidget {
                 top: 16,
                 right: 16,
                 child: FloatingActionButton.extended(
-                  onPressed: () => _printOrders(context),
+                  onPressed: () => _printOrders(context, tr),
                   icon: const Icon(Icons.print),
-                  label: const Text('Print Orders'),
+                  label: Text(tr.printOrders),
                   backgroundColor: Colors.blue,
                 ),
               ),
@@ -387,9 +421,9 @@ class OrdersPageWithPrint extends StatelessWidget {
     );
   }
 
-  void _printOrders(BuildContext context) {
+  void _printOrders(BuildContext context, AppLocalizations tr) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Printing orders… (Print functionality)')),
+      SnackBar(content: Text(tr.printingOrders)),
     );
   }
 }
@@ -401,6 +435,7 @@ class ReportsPageWithPrint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tr = context.tr;
     return Column(
       children: [
         if (AuthService.isSupervisor)
@@ -413,7 +448,7 @@ class ReportsPageWithPrint extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Supervisor view — read-only. You may print reports.',
+                    tr.supervisorReportReadOnly,
                     style: TextStyle(color: Colors.blue[900]),
                   ),
                 ),
@@ -428,9 +463,9 @@ class ReportsPageWithPrint extends StatelessWidget {
                 top: 16,
                 right: 16,
                 child: FloatingActionButton.extended(
-                  onPressed: () => _printReports(context),
+                  onPressed: () => _printReports(context, tr),
                   icon: const Icon(Icons.print),
-                  label: const Text('Print Report'),
+                  label: Text(tr.printReport),
                   backgroundColor: Colors.green,
                 ),
               ),
@@ -441,9 +476,9 @@ class ReportsPageWithPrint extends StatelessWidget {
     );
   }
 
-  void _printReports(BuildContext context) {
+  void _printReports(BuildContext context, AppLocalizations tr) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Printing report… (Print functionality)')),
+      SnackBar(content: Text(tr.printingReport)),
     );
   }
 }

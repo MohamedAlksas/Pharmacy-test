@@ -2,9 +2,11 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
+import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/Models/materialModel.dart';
 import 'package:graduation_project/Services/MaterialSerivce.dart';
 import 'package:graduation_project/Services/ProductService.dart';
+import 'package:graduation_project/Services/TransliterationService.dart';
 import 'package:graduation_project/Services/alertService.dart';
 
 class ProductProvider extends ChangeNotifier {
@@ -167,7 +169,32 @@ class ProductProvider extends ChangeNotifier {
   Future<void> _replaceProductsFromApi() async {
     _products = await _fetchProductsFromApi();
     _applyPendingOverrides();
+    await _translateProductNames();
     _syncDerivedState();
+  }
+
+  /// Transliterates product names and categories locally (no API, instant).
+  /// No-op when language is English.
+  Future<void> _translateProductNames() async {
+    if (languageNotifier.value != AppLanguage.ar) return;
+    if (_products.isEmpty) return;
+
+    final allStrings = <String>{};
+    for (final p in _products) {
+      if (p.name.isNotEmpty) allStrings.add(p.name);
+      if (p.category.isNotEmpty && p.category != 'Uncategorized') {
+        allStrings.add(p.category);
+      }
+    }
+
+    final map = TransliterationService.transliterateAll(allStrings.toList());
+
+    _products = _products.map((p) {
+      return p.copyWith(
+        name: map[p.name] ?? p.name,
+        category: map[p.category] ?? p.category,
+      );
+    }).toList();
   }
 
   // After every fetch, re-apply any writes the server hasn't committed yet.
@@ -250,12 +277,14 @@ class _ProductProviderScopeState extends State<ProductProviderScope> {
   void initState() {
     super.initState();
     AuthService.sessionChanges.addListener(_handleSessionChange);
+    languageNotifier.addListener(_handleLanguageChange);
     _handleSessionChange();
   }
 
   @override
   void dispose() {
     AuthService.sessionChanges.removeListener(_handleSessionChange);
+    languageNotifier.removeListener(_handleLanguageChange);
     _provider.dispose();
     super.dispose();
   }
@@ -265,6 +294,15 @@ class _ProductProviderScopeState extends State<ProductProviderScope> {
       _provider.loadProducts();
     } else {
       _provider.clear(notify: true);
+    }
+  }
+
+  /// Re-load products whenever the language toggles so names get translated
+  /// (or reverted to English) immediately.
+  void _handleLanguageChange() {
+    if (AuthService.isAuthenticated) {
+      TransliterationService.clearCache();
+      _provider.loadProducts();
     }
   }
 

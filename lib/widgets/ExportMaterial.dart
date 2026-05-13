@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/ProductProvider.dart';
+import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/Models/materialModel.dart';
+import 'package:graduation_project/main.dart';
 
 class ExportMaterialResult {
   final MaterialModel product;
@@ -50,6 +52,7 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
   }
 
   void _submit() {
+    final tr = context.tr;
     setState(() => _inlineError = null);
     if (!_formKey.currentState!.validate()) return;
 
@@ -59,31 +62,25 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
               widget.provider.findByNameOrSku(_nameController.text.trim())
         : widget.provider.findById(selectedProduct.id) ?? selectedProduct;
     if (product == null) {
-      setState(() => _inlineError = 'Product not found in inventory');
+      setState(() => _inlineError = tr.productNotFound);
       return;
     }
 
     final quantity = int.parse(_quantityController.text.trim());
 
-    // Cannot export from an already empty item
     if (product.quantity == 0) {
-      setState(() => _inlineError = 'This item is already out of stock');
+      setState(() => _inlineError = tr.outOfStock);
       return;
     }
 
-    // Cannot export more than current stock
     if (quantity > product.quantity) {
-      setState(() => _inlineError = 'Export quantity exceeds available stock');
+      setState(() => _inlineError = tr.exceedsStock);
       return;
     }
 
-    // quantity == product.quantity → nextQuantity = 0 → isAvailable = false
     final int nextQuantity = product.quantity - quantity;
     final bool nextIsAvailable = nextQuantity > 0;
 
-    // Build the body with all fields the API needs.
-    // categoryId is omitted when 0 (API doesn't return it in GET, so model
-    // stores 0 as fallback — sending 0 back causes backend errors).
     final body = <String, dynamic>{
       'materialName': product.name,
       'material_SKU': product.sku,
@@ -94,17 +91,20 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
       'storageLocation': product.location,
       'isAvailable': nextIsAvailable,
       if (product.categoryId > 0) 'categoryId': product.categoryId,
-      if (product.category.isNotEmpty && product.category != 'Uncategorized')
+      if (product.category.isNotEmpty &&
+          product.category != 'Uncategorized')
         'categoryName': product.category,
     };
     Navigator.pop(
       context,
-      ExportMaterialResult(product: product, quantity: quantity, body: body),
+      ExportMaterialResult(
+          product: product, quantity: quantity, body: body),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final tr = context.tr;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final selected = _selectedProduct != null;
     final results = _matchingProducts();
@@ -130,7 +130,7 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Export Product',
+                            tr.exportProductTitle,
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
@@ -139,10 +139,11 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Record product leaving warehouse inventory.',
+                            tr.exportProductSubtitle,
                             style: TextStyle(
                               fontSize: 13,
-                              color: isDark ? Colors.white60 : Colors.black54,
+                              color:
+                                  isDark ? Colors.white60 : Colors.black54,
                             ),
                           ),
                         ],
@@ -150,18 +151,17 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: Icon(
-                        Icons.close,
-                        color: isDark ? Colors.white70 : Colors.black54,
-                      ),
+                      icon: Icon(Icons.close,
+                          color:
+                              isDark ? Colors.white70 : Colors.black54),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
                 _field(
                   controller: _searchController,
-                  label: 'Search by Name or SKU',
-                  hintText: 'Type material name or SKU',
+                  label: tr.searchByNameOrSku,
+                  hintText: tr.typeHintSearch,
                   icon: Icons.search,
                   isDark: isDark,
                   validator: (_) => null,
@@ -177,7 +177,7 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                     child: TextButton.icon(
                       onPressed: _clearSelection,
                       icon: const Icon(Icons.clear),
-                      label: const Text('Clear'),
+                      label: Text(tr.clear),
                     ),
                   ),
                 const SizedBox(height: 14),
@@ -187,7 +187,7 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                   children: [
                     _field(
                       controller: _nameController,
-                      label: 'Material Name',
+                      label: tr.materialName,
                       hintText: 'e.g. Paracetamol',
                       icon: Icons.medication_outlined,
                       isDark: isDark,
@@ -196,8 +196,8 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                     ),
                     _field(
                       controller: _skuController,
-                      label: 'Material SKU',
-                      hintText: 'e.g. MED-1001',
+                      label: tr.materialSku,
+                      hintText: tr.skuHint,
                       icon: Icons.qr_code_2_outlined,
                       isDark: isDark,
                       readOnly: selected,
@@ -205,7 +205,7 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                     ),
                     _field(
                       controller: _quantityController,
-                      label: 'Quantity',
+                      label: tr.quantity,
                       hintText: '1',
                       icon: Icons.inventory_2_outlined,
                       keyboardType: TextInputType.number,
@@ -214,24 +214,24 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                     ),
                     _field(
                       controller: _unitController,
-                      label: 'Unit',
-                      hintText: 'box / bottle / strip',
+                      label: tr.unit,
+                      hintText: tr.unitHint,
                       icon: Icons.straighten_outlined,
                       isDark: isDark,
                       readOnly: selected,
                     ),
                     _field(
                       controller: _logNumberController,
-                      label: 'Log Number',
-                      hintText: 'LOT-2026-01',
+                      label: tr.logNumber,
+                      hintText: tr.logHint,
                       icon: Icons.badge_outlined,
                       isDark: isDark,
                       readOnly: selected,
                     ),
                     _field(
                       controller: _categoryIdController,
-                      label: 'Category ID',
-                      hintText: '1',
+                      label: tr.categoryId,
+                      hintText: tr.categoryIdHint,
                       icon: Icons.category_outlined,
                       keyboardType: TextInputType.number,
                       isDark: isDark,
@@ -242,10 +242,8 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                 ),
                 if (_inlineError != null) ...[
                   const SizedBox(height: 16),
-                  Text(
-                    _inlineError!,
-                    style: const TextStyle(color: Colors.red),
-                  ),
+                  Text(_inlineError!,
+                      style: const TextStyle(color: Colors.red)),
                 ],
                 const SizedBox(height: 24),
                 Row(
@@ -253,20 +251,18 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
+                      child: Text(tr.cancel),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: _submit,
                       icon: const Icon(Icons.upload_outlined),
-                      label: const Text('Export Product'),
+                      label: Text(tr.exportProductBtn),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1CA0A5),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 14,
-                        ),
+                            horizontal: 18, vertical: 14),
                       ),
                     ),
                   ],
@@ -280,6 +276,7 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
   }
 
   Widget _resultsList(List<MaterialModel> results, bool isDark) {
+    final tr = context.tr;
     return Container(
       width: 576,
       constraints: const BoxConstraints(maxHeight: 190),
@@ -297,7 +294,8 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
           return ListTile(
             dense: true,
             title: Text(product.name),
-            subtitle: Text('SKU: ${product.sku} | Stock: ${product.quantity}'),
+            subtitle: Text(
+                '${tr.sku}: ${product.sku} | ${tr.quantity}: ${product.quantity}'),
             onTap: () => _selectProduct(product),
           );
         },
@@ -317,6 +315,7 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
     String? Function(String?)? validator,
     ValueChanged<String>? onChanged,
   }) {
+    final tr = context.tr;
     return SizedBox(
       width: width,
       child: Column(
@@ -337,13 +336,16 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
             readOnly: readOnly,
             onChanged: onChanged,
             validator: readOnly ? (_) => null : validator ?? _required,
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            style:
+                TextStyle(color: isDark ? Colors.white : Colors.black87),
             decoration: InputDecoration(
               hintText: hintText,
               prefixIcon: Icon(icon),
-              suffixIcon: readOnly ? const Icon(Icons.lock_outline) : null,
+              suffixIcon:
+                  readOnly ? const Icon(Icons.lock_outline) : null,
               filled: true,
-              fillColor: isDark ? const Color(0xFF2A3441) : Colors.grey[100],
+              fillColor:
+                  isDark ? const Color(0xFF2A3441) : Colors.grey[100],
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -407,14 +409,16 @@ class _ExportMaterialDialogState extends State<ExportMaterialDialog> {
   }
 
   String? _required(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Required';
+    final tr = context.tr;
+    if (value == null || value.trim().isEmpty) return tr.required;
     return null;
   }
 
   String? _validatePositiveInteger(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Required';
+    final tr = context.tr;
+    if (value == null || value.trim().isEmpty) return tr.required;
     final parsed = int.tryParse(value.trim());
-    if (parsed == null || parsed <= 0) return 'Enter a positive number';
+    if (parsed == null || parsed <= 0) return tr.positiveNumber;
     return null;
   }
 }

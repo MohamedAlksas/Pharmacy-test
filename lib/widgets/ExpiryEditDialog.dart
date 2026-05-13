@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/Models/materialModel.dart';
+import 'package:graduation_project/main.dart';
 
 class ExpiryEditDialog extends StatefulWidget {
   final MaterialModel product;
@@ -38,6 +40,7 @@ class _ExpiryEditDialogState extends State<ExpiryEditDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final tr = context.tr;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
@@ -54,7 +57,7 @@ class _ExpiryEditDialogState extends State<ExpiryEditDialog> {
               children: [
                 Expanded(
                   child: Text(
-                    'Request Expiry Edit',
+                    tr.requestExpiryEdit,
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -69,11 +72,11 @@ class _ExpiryEditDialogState extends State<ExpiryEditDialog> {
               ],
             ),
             const SizedBox(height: 18),
-            _infoRow('Product', widget.product.name, isDark),
-            _infoRow('SKU', widget.product.sku, isDark),
+            _infoRow(tr.product, widget.product.name, isDark),
+            _infoRow(tr.sku, widget.product.sku, isDark),
             const SizedBox(height: 18),
             Text(
-              'New Expiry Date',
+              tr.newExpiryDate,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -88,17 +91,20 @@ class _ExpiryEditDialogState extends State<ExpiryEditDialog> {
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.calendar_today_outlined),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF2A3441) : Colors.grey[100],
+                  fillColor:
+                      isDark ? const Color(0xFF2A3441) : Colors.grey[100],
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   errorText: _submitted && _expiryDate == null
-                      ? 'Please select an expiry date'
+                      ? tr.pleaseSelectDate
                       : null,
                 ),
                 child: Text(
-                  _expiryDate == null ? 'Select date' : _formatDate(_expiryDate!),
+                  _expiryDate == null
+                      ? tr.selectDate
+                      : _formatDate(_expiryDate!),
                 ),
               ),
             ),
@@ -108,13 +114,13 @@ class _ExpiryEditDialogState extends State<ExpiryEditDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: Text(tr.cancel),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: _submit,
                   icon: const Icon(Icons.send_outlined),
-                  label: const Text('Request Edit'),
+                  label: Text(tr.requestEdit),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1CA0A5),
                     foregroundColor: Colors.white,
@@ -137,7 +143,8 @@ class _ExpiryEditDialogState extends State<ExpiryEditDialog> {
             width: 80,
             child: Text(
               '$label:',
-              style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
+              style: TextStyle(
+                  color: isDark ? Colors.white60 : Colors.black54),
             ),
           ),
           Expanded(
