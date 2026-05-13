@@ -143,7 +143,11 @@ class MaterialModel {
     if (value is int) {
       return value;
     }
-    return int.tryParse(value?.toString() ?? '') ?? 0;
+    if (value is double) {
+      return value.toInt();
+    }
+    final str = value?.toString() ?? '';
+    return int.tryParse(str) ?? double.tryParse(str)?.toInt() ?? 0;
   }
 
   static bool _toBool(dynamic value) {

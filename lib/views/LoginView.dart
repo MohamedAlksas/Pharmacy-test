@@ -397,37 +397,40 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildLogoCircle() {
-    return Container(
-      height: 76,
-      width: 76,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Container(
-          height: 58,
-          width: 58,
-          decoration: const BoxDecoration(
-            color: Color(0xFFE6FBFC),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.local_pharmacy,
-            size: 30,
-            color: Color(0xFF0A6B6E),
+  return Container(
+    height: 120,  // كان 76
+    width: 120,   // كان 76
+    decoration: BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.06),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    ),
+    child: Center(
+      child: Container(
+        height: 100,  // كان 58
+        width: 100,   // كان 58
+        decoration: const BoxDecoration(
+          color: Color(0xFFE6FBFC),
+          shape: BoxShape.circle,
+        ),
+        child: ClipOval(
+          child: Image.asset(
+            'assets/pharmacy faculty logo.png',
+            width: 100,   // كان 58
+            height: 100,  // كان 58
+            fit: BoxFit.cover,
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _RegisterSheet extends StatefulWidget {

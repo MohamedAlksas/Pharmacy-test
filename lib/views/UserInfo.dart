@@ -265,17 +265,17 @@ class _UserInfoPageState extends State<UserInfoPage> {
       child: Row(
         children: [
           CircleAvatar(
-            radius: 42,
-            backgroundColor: roleColor.withOpacity(0.14),
-            child: Text(
-              _profileInitial(),
-              style: TextStyle(
-                color: roleColor,
-                fontSize: 34,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+  radius: 42,
+  backgroundColor: roleColor.withOpacity(0.14),
+  child: ClipOval(
+    child: Image.asset(
+      'assets/pharmacy faculty logo.png',
+      width: 84,
+      height: 84,
+      fit: BoxFit.cover,
+    ),
+  ),
+),
           const SizedBox(width: 18),
           Expanded(
             child: Column(

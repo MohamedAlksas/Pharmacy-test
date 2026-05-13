@@ -101,13 +101,14 @@ class _MainLayoutState extends State<MainLayout> {
                   child: Row(
                     children: [
                       CircleAvatar(
-                        radius: 20,
+                        radius: 27, // كان 20
                         backgroundColor: roleColor.withOpacity(0.16),
-                        child: Text(
-                          _profileInitial(fullName),
-                          style: TextStyle(
-                            color: roleColor,
-                            fontWeight: FontWeight.bold,
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/pharmacy faculty logo.png',
+                            width: 50, // كان 40
+                            height: 50, // كان 40
+                            fit: BoxFit.cover,
                           ),
                         ),
                       ),
