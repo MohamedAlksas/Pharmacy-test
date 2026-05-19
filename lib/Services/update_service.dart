@@ -60,9 +60,14 @@ class UpdateService {
     }
   }
 
-  static Future<void> openDownloadUrl(String url) async {
+  static Future<bool> openDownloadUrl(String url) async {
     final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (uri == null) return false;
+    try {
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('[UpdateService] Failed to open URL: $e');
+      return false;
+    }
   }
 }

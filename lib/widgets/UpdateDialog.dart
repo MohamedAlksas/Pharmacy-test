@@ -185,9 +185,20 @@ class UpdateDialog extends StatelessWidget {
       );
       return;
     }
-    await UpdateService.openDownloadUrl(url);
-    if (!version.mandatory && context.mounted) {
-      Navigator.pop(context);
+
+    final opened = await UpdateService.openDownloadUrl(url);
+    if (!context.mounted) return;
+
+    if (!opened) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open download page. Open manually:\n$url'),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
     }
+
+    if (!version.mandatory) Navigator.pop(context);
   }
 }
