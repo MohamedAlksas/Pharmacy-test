@@ -8,6 +8,7 @@ import 'package:graduation_project/views/OrdersView.dart';
 import 'package:graduation_project/views/ReportsPage.dart';
 import 'package:graduation_project/views/UserInfo.dart';
 import 'package:graduation_project/main.dart';
+import 'package:graduation_project/Services/update_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MainLayout  (single definition — Mainlayout.dart is deleted / unused)
@@ -369,31 +370,52 @@ class _Sidebar extends StatelessWidget {
 
   Widget _buildBottomBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            tooltip: 'Toggle theme',
-            icon: Icon(
-              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: _iconDef,
-              size: 20,
-            ),
-            onPressed: () {
-              themeNotifier.value = themeNotifier.value == ThemeMode.dark
-                  ? ThemeMode.light
-                  : ThemeMode.dark;
-            },
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Toggle theme',
+                icon: Icon(
+                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                  color: _iconDef,
+                  size: 20,
+                ),
+                onPressed: () {
+                  themeNotifier.value = themeNotifier.value == ThemeMode.dark
+                      ? ThemeMode.light
+                      : ThemeMode.dark;
+                },
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Logout',
+                icon: Icon(
+                  Icons.logout_rounded,
+                  color: Colors.red.shade300,
+                  size: 20,
+                ),
+                onPressed: onLogout,
+              ),
+            ],
           ),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Logout',
-            icon: Icon(
-              Icons.logout_rounded,
-              color: Colors.red.shade300,
-              size: 20,
-            ),
-            onPressed: onLogout,
+          FutureBuilder<String>(
+            future: UpdateService.currentVersion,
+            builder: (context, snapshot) {
+              final version = snapshot.data ?? '';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  version.isNotEmpty ? 'v$version' : '',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _iconDef,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

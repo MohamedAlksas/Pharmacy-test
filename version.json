@@ -1,9 +1,9 @@
 {
-  "latestVersion": "1.0.11",
-  "latestBuildNumber": 11,
+  "latestVersion": "1.0.12",
+  "latestBuildNumber": 12,
   "downloadUrl": "https://github.com/MohamedAlksas/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
-    "Test: auto-update via rename approach"
+    "Added app version display in sidebar"
   ]
 }
