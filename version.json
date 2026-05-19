@@ -1,0 +1,12 @@
+{
+  "latestVersion": "1.0.1",
+  "latestBuildNumber": 2,
+  "downloadUrl": "https://github.com/MohamedAlksas/Pharmacy-test/releases/latest/download/app-release.apk",
+  "mandatory": false,
+  "releaseNotes": [
+    "Enhanced inventory search with auto-complete",
+    "Fixed Arabic translation for expiry dates",
+    "Improved dark mode contrast in reports",
+    "Performance optimizations for large inventories"
+  ]
+}
