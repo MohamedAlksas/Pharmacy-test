@@ -126,24 +126,23 @@ class DownloadService {
             final installDir = File(currentExe).parent.path;
             final exeName = exeFile.path.split('\\').last;
 
-            // Write a PowerShell script that renames the old EXE (so the path is free),
-            // copies new files over, then launches the new EXE and cleans up.
-            final scriptPath = '$extractPath\\update.ps1';
-            final script = '''
-Start-Sleep -Seconds 3
-\$oldExe = "$installDir\\$exeName"
-if (Test-Path \$oldExe) {
-    Rename-Item -Path \$oldExe -NewName "$exeName.old" -Force
-}
-Copy-Item -Path "$extractPath\\*" -Destination "$installDir" -Recurse -Force
-Start-Process "$installDir\\$exeName"
-Start-Sleep -Seconds 2
-Remove-Item -Path "$installDir\\$exeName.old" -Force -ErrorAction SilentlyContinue
+            // Write a batch file in the app directory (not temp — survives app exit)
+            // then launch it via cmd /c start, creating a fully detached window process.
+            final batchPath = '$installDir\\update.bat';
+            final batchContent = '''
+@echo off
+timeout /t 5 /nobreak >nul
+ren "$installDir\\$exeName" "$exeName.old"
+copy /y "$extractPath\\*" "$installDir\\" >nul 2>&1
+start "" "$installDir\\$exeName"
+timeout /t 2 /nobreak >nul
+del "$installDir\\$exeName.old" >nul 2>&1
+del "$batchPath" >nul 2>&1
 ''';
-            File(scriptPath).writeAsStringSync(script);
+            File(batchPath).writeAsStringSync(batchContent);
 
             onProgress(const DownloadProgress(state: DownloadState.launching));
-            await Process.start('powershell', ['-ExecutionPolicy', 'Bypass', '-File', scriptPath]);
+            Process.run('cmd', ['/c', 'start', '', '/MIN', 'cmd', '/c', batchPath]);
             exit(0);
           } catch (e) {
             final err = DownloadProgress(
