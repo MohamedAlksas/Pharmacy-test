@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:graduation_project/Models/app_version.dart';
 
 class UpdateService {
@@ -60,14 +59,4 @@ class UpdateService {
     }
   }
 
-  static Future<bool> openDownloadUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return false;
-    try {
-      return await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      debugPrint('[UpdateService] Failed to open URL: $e');
-      return false;
-    }
-  }
 }
