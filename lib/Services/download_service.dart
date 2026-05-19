@@ -109,7 +109,7 @@ class DownloadService {
               }
             }
 
-            // Find the EXE
+            // Find the EXE name
             final exeFile = _findExe(extractDir);
             if (exeFile == null) {
               final err = DownloadProgress(
@@ -121,9 +121,22 @@ class DownloadService {
               return;
             }
 
-            // Launch the new EXE and exit the current app
+            // Get the current app's install directory
+            final currentExe = Platform.resolvedExecutable;
+            final installDir = File(currentExe).parent.path;
+            final exeName = exeFile.path.split('\\').last;
+
+            // Write a PowerShell script that copies files after this app exits
+            final scriptPath = '$extractPath\\update.ps1';
+            final script = '''
+Start-Sleep -Seconds 3
+Copy-Item -Path "$extractPath\\*" -Destination "$installDir" -Recurse -Force
+Start-Process "$installDir\\$exeName"
+''';
+            File(scriptPath).writeAsStringSync(script);
+
             onProgress(const DownloadProgress(state: DownloadState.launching));
-            await Process.start(exeFile.path, [], runInShell: true);
+            await Process.start('powershell', ['-ExecutionPolicy', 'Bypass', '-File', scriptPath]);
             exit(0);
           } catch (e) {
             final err = DownloadProgress(
