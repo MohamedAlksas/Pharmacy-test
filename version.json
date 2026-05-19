@@ -1,9 +1,14 @@
 {
-  "latestVersion": "1.0.12",
-  "latestBuildNumber": 12,
+  "latestVersion": "1.0.13",
+  "latestBuildNumber": 13,
   "downloadUrl": "https://github.com/MohamedAlksas/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
-    "Added app version display in sidebar"
+    "Table column sorting in Inventory",
+    "Undo delete snackbar (4-second delay)",
+    "Enhanced product detail view dialog",
+    "Confirm before discard on add/edit forms",
+    "Auto-refresh dashboard every 60s",
+    "Dark mode polish fixes"
   ]
 }
