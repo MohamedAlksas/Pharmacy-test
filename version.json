@@ -1,10 +1,9 @@
 {
-  "latestVersion": "1.0.10",
-  "latestBuildNumber": 10,
+  "latestVersion": "1.0.11",
+  "latestBuildNumber": 11,
   "downloadUrl": "https://github.com/MohamedAlksas/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
-    "Fix: update now works without batch file",
-    "EXE is renamed while running, new EXE copied in-place, then relaunched"
+    "Test: auto-update via rename approach"
   ]
 }
