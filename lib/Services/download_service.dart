@@ -126,12 +126,19 @@ class DownloadService {
             final installDir = File(currentExe).parent.path;
             final exeName = exeFile.path.split('\\').last;
 
-            // Write a PowerShell script that copies files after this app exits
+            // Write a PowerShell script that renames the old EXE (so the path is free),
+            // copies new files over, then launches the new EXE and cleans up.
             final scriptPath = '$extractPath\\update.ps1';
             final script = '''
 Start-Sleep -Seconds 3
+\$oldExe = "$installDir\\$exeName"
+if (Test-Path \$oldExe) {
+    Rename-Item -Path \$oldExe -NewName "$exeName.old" -Force
+}
 Copy-Item -Path "$extractPath\\*" -Destination "$installDir" -Recurse -Force
 Start-Process "$installDir\\$exeName"
+Start-Sleep -Seconds 2
+Remove-Item -Path "$installDir\\$exeName.old" -Force -ErrorAction SilentlyContinue
 ''';
             File(scriptPath).writeAsStringSync(script);
 
