@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/app_version.dart';
 import 'package:graduation_project/Services/download_service.dart';
@@ -74,8 +73,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
               const SizedBox(height: 18),
               Text(
                 _downloading
-                    ? _progress.state == DownloadState.done
-                        ? 'Update Complete'
+                    ? _progress.state == DownloadState.launching
+                        ? 'Installing Update'
                         : 'Downloading Update...'
                     : 'Update Available',
                 style: TextStyle(
@@ -89,8 +88,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 _downloading
                     ? _progress.state == DownloadState.extracting
                         ? 'Extracting update package...'
-                        : _progress.state == DownloadState.done
-                            ? 'Update installed! Please restart the app.'
+                        : _progress.state == DownloadState.launching
+                            ? 'Launching installer...'
                             : _progress.state == DownloadState.error
                                 ? _progress.error ?? 'Download failed'
                                 : 'Version ${widget.version.latestVersion}'
@@ -147,33 +146,13 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 ),
               ],
               if (_downloading &&
-                  (_progress.state == DownloadState.error ||
-                   _progress.state == DownloadState.done)) ...[
+                  _progress.state == DownloadState.error) ...[
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      if (_progress.state == DownloadState.done) {
-                        exit(0);
-                      } else {
-                        Navigator.pop(context);
-                      }
-                    },
-                    icon: Icon(_progress.state == DownloadState.done
-                        ? Icons.restart_alt_rounded
-                        : Icons.close),
-                    label: Text(_progress.state == DownloadState.done
-                        ? 'Restart Now'
-                        : 'Close'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0A6B6E),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
                   ),
                 ),
               ],
@@ -210,7 +189,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('• ', style: TextStyle(fontSize: 13)),
+                  const Text('\u2022 ', style: TextStyle(fontSize: 13)),
                   Expanded(
                     child: Text(
                       note,
@@ -242,7 +221,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
   }
 
   Widget _buildIcon(bool isDark) {
-    final bool showCheck = _downloading && _progress.state == DownloadState.done;
     return Container(
       width: 72,
       height: 72,
@@ -250,7 +228,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
         shape: BoxShape.circle,
         color: const Color(0xFF0A6B6E).withOpacity(0.1),
       ),
-      child: _downloading && !showCheck
+      child: _downloading
           ? const SizedBox(
               width: 32,
               height: 32,
@@ -258,10 +236,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 child: CircularProgressIndicator(strokeWidth: 3),
               ),
             )
-          : Icon(
-              showCheck ? Icons.check_rounded : Icons.system_update_rounded,
+          : const Icon(
+              Icons.system_update_rounded,
               size: 36,
-              color: const Color(0xFF0A6B6E),
+              color: Color(0xFF0A6B6E),
             ),
     );
   }

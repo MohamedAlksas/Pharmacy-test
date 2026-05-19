@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-enum DownloadState { idle, downloading, extracting, done, error }
+enum DownloadState { idle, downloading, extracting, launching, done, error }
 
 class DownloadProgress {
   final DownloadState state;
@@ -106,36 +106,33 @@ class DownloadService {
               }
             }
 
-            // Copy extracted files over the install directory
+            // Find the EXE name
+            final exeFile = _findExe(extractDir);
+            if (exeFile == null) {
+              final err = DownloadProgress(
+                state: DownloadState.error,
+                error: 'No executable found in the update package',
+              );
+              onProgress(err);
+              completer.complete(err);
+              return;
+            }
+            final exeName = exeFile.path.split('\\').last;
             final currentExe = Platform.resolvedExecutable;
             final installDir = File(currentExe).parent.path;
 
-            final entities = extractDir.listSync(recursive: true);
-            for (final entity in entities) {
-              if (entity is File) {
-                final relPath =
-                    entity.path.substring(extractPath.length + 1);
-                final destPath = '$installDir\\$relPath';
-                try {
-                  final parent = File(destPath).parent;
-                  if (!parent.existsSync()) {
-                    parent.createSync(recursive: true);
-                  }
-                  entity.copySync(destPath);
-                } catch (_) {
-                  // File is locked (DLL in use) — skip, old one will work
-                }
-              }
-            }
+            // Write a batch file in TEMP that waits, copies, then launches the new EXE
+            final batchPath = '$extractPath\\update.bat';
+            File(batchPath).writeAsStringSync('''
+@echo off
+timeout /t 10 /nobreak >nul
+copy /y "$extractPath\\*" "$installDir\\" >nul 2>&1
+start "" "$installDir\\$exeName"
+''');
 
-            onProgress(DownloadProgress(
-              state: DownloadState.done,
-              filePath: currentExe,
-            ));
-            completer.complete(DownloadProgress(
-              state: DownloadState.done,
-              filePath: currentExe,
-            ));
+            onProgress(const DownloadProgress(state: DownloadState.launching));
+            Process.start('cmd', ['/c', batchPath]);
+            exit(0);
           } catch (e) {
             final err = DownloadProgress(
               state: DownloadState.error,
@@ -165,5 +162,16 @@ class DownloadService {
       onProgress(err);
       return err;
     }
+  }
+
+  static File? _findExe(Directory dir) {
+    if (!dir.existsSync()) return null;
+    final entities = dir.listSync(recursive: true);
+    for (final entity in entities) {
+      if (entity is File && entity.path.endsWith('.exe')) {
+        return entity;
+      }
+    }
+    return null;
   }
 }
