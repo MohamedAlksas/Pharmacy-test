@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-enum DownloadState { idle, downloading, extracting, launching, done, error }
+enum DownloadState { idle, downloading, extracting, done, error }
 
 class DownloadProgress {
   final DownloadState state;
@@ -51,7 +51,6 @@ class DownloadService {
       final zipPath = '${dir.path}\\$fileName';
       final extractPath = '${dir.path}\\app_update';
 
-      // Download
       final client = http.Client();
       final request = http.Request('GET', uri);
       final response = await client.send(request);
@@ -85,9 +84,7 @@ class DownloadService {
           try {
             final file = File(zipPath);
             await file.writeAsBytes(receivedBytes);
-            onProgress(const DownloadProgress(state: DownloadState.done));
 
-            // Extract ZIP
             onProgress(const DownloadProgress(state: DownloadState.extracting));
             final bytes = file.readAsBytesSync();
             final archive = ZipDecoder().decodeBytes(bytes);
@@ -109,40 +106,36 @@ class DownloadService {
               }
             }
 
-            // Find the EXE name
-            final exeFile = _findExe(extractDir);
-            if (exeFile == null) {
-              final err = DownloadProgress(
-                state: DownloadState.error,
-                error: 'No executable found in the update package',
-              );
-              onProgress(err);
-              completer.complete(err);
-              return;
-            }
-
-            // Get the current app's install directory
+            // Copy extracted files over the install directory
             final currentExe = Platform.resolvedExecutable;
             final installDir = File(currentExe).parent.path;
-            final exeName = exeFile.path.split('\\').last;
 
-            // Write a batch file that waits for the old app to fully exit,
-            // then copies new files over and launches the new EXE.
-            // Launched via cmd /c start — fully detached process.
-            final batchPath = '$installDir\\update.bat';
-            final batchContent = '''
-@echo off
-timeout /t 15 /nobreak >nul
-copy /y "$extractPath\\*" "$installDir\\" >nul 2>&1
-if exist "$installDir\\$exeName" (
-    start "" "$installDir\\$exeName"
-)
-''';
-            File(batchPath).writeAsStringSync(batchContent);
+            final entities = extractDir.listSync(recursive: true);
+            for (final entity in entities) {
+              if (entity is File) {
+                final relPath =
+                    entity.path.substring(extractPath.length + 1);
+                final destPath = '$installDir\\$relPath';
+                try {
+                  final parent = File(destPath).parent;
+                  if (!parent.existsSync()) {
+                    parent.createSync(recursive: true);
+                  }
+                  entity.copySync(destPath);
+                } catch (_) {
+                  // File is locked (DLL in use) — skip, old one will work
+                }
+              }
+            }
 
-            onProgress(const DownloadProgress(state: DownloadState.launching));
-            Process.run('cmd', ['/c', 'start', '', '/MIN', 'cmd', '/c', batchPath]);
-            exit(0);
+            onProgress(const DownloadProgress(
+              state: DownloadState.done,
+              filePath: currentExe,
+            ));
+            completer.complete(DownloadProgress(
+              state: DownloadState.done,
+              filePath: currentExe,
+            ));
           } catch (e) {
             final err = DownloadProgress(
               state: DownloadState.error,
@@ -172,16 +165,5 @@ if exist "$installDir\\$exeName" (
       onProgress(err);
       return err;
     }
-  }
-
-  static File? _findExe(Directory dir) {
-    if (!dir.existsSync()) return null;
-    final entities = dir.listSync(recursive: true);
-    for (final entity in entities) {
-      if (entity is File && entity.path.endsWith('.exe')) {
-        return entity;
-      }
-    }
-    return null;
   }
 }

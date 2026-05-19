@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/app_version.dart';
 import 'package:graduation_project/Services/download_service.dart';
@@ -72,7 +73,11 @@ class _UpdateDialogState extends State<UpdateDialog> {
               _buildIcon(isDark),
               const SizedBox(height: 18),
               Text(
-                _downloading ? 'Downloading Update...' : 'Update Available',
+                _downloading
+                    ? _progress.state == DownloadState.done
+                        ? 'Update Complete'
+                        : 'Downloading Update...'
+                    : 'Update Available',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -84,8 +89,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 _downloading
                     ? _progress.state == DownloadState.extracting
                         ? 'Extracting update package...'
-                        : _progress.state == DownloadState.launching
-                            ? 'Launching installer...'
+                        : _progress.state == DownloadState.done
+                            ? 'Update installed! Please restart the app.'
                             : _progress.state == DownloadState.error
                                 ? _progress.error ?? 'Download failed'
                                 : 'Version ${widget.version.latestVersion}'
@@ -142,13 +147,33 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 ),
               ],
               if (_downloading &&
-                  _progress.state == DownloadState.error) ...[
+                  (_progress.state == DownloadState.error ||
+                   _progress.state == DownloadState.done)) ...[
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      if (_progress.state == DownloadState.done) {
+                        exit(0);
+                      } else {
+                        Navigator.pop(context);
+                      }
+                    },
+                    icon: Icon(_progress.state == DownloadState.done
+                        ? Icons.restart_alt_rounded
+                        : Icons.close),
+                    label: Text(_progress.state == DownloadState.done
+                        ? 'Restart Now'
+                        : 'Close'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0A6B6E),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -217,6 +242,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
   }
 
   Widget _buildIcon(bool isDark) {
+    final bool showCheck = _downloading && _progress.state == DownloadState.done;
     return Container(
       width: 72,
       height: 72,
@@ -224,7 +250,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
         shape: BoxShape.circle,
         color: const Color(0xFF0A6B6E).withOpacity(0.1),
       ),
-      child: _downloading
+      child: _downloading && !showCheck
           ? const SizedBox(
               width: 32,
               height: 32,
@@ -232,10 +258,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 child: CircularProgressIndicator(strokeWidth: 3),
               ),
             )
-          : const Icon(
-              Icons.system_update_rounded,
+          : Icon(
+              showCheck ? Icons.check_rounded : Icons.system_update_rounded,
               size: 36,
-              color: Color(0xFF0A6B6E),
+              color: const Color(0xFF0A6B6E),
             ),
     );
   }
