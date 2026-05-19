@@ -129,8 +129,9 @@ class DownloadService {
             // Write a batch file that renames the ENTIRE install directory (avoids all file locks),
             // copies new files to a fresh directory, launches the new EXE, then cleans up.
             // Launched via cmd /c start — fully detached process that survives app exit.
-            final dirName = Directory(installDir).name;
-            final parentDir = Directory(installDir).parent.path;
+            final parts = installDir.split('\\');
+            final dirName = parts.last;
+            final parentDir = parts.take(parts.length - 1).join('\\');
             final batchPath = '$installDir\\update.bat';
             final batchContent = '''
 @echo off
