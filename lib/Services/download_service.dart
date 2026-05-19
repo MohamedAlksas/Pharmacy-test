@@ -106,32 +106,41 @@ class DownloadService {
               }
             }
 
-            // Find the EXE name
-            final exeFile = _findExe(extractDir);
-            if (exeFile == null) {
-              final err = DownloadProgress(
-                state: DownloadState.error,
-                error: 'No executable found in the update package',
-              );
-              onProgress(err);
-              completer.complete(err);
-              return;
-            }
-            final exeName = exeFile.path.split('\\').last;
             final currentExe = Platform.resolvedExecutable;
             final installDir = File(currentExe).parent.path;
+            final exeName = currentExe.split('\\').last;
 
-            // Write a batch file in TEMP that waits, copies, then launches the new EXE
-            final batchPath = '$extractPath\\update.bat';
-            File(batchPath).writeAsStringSync('''
-@echo off
-timeout /t 10 /nobreak >nul
-copy /y "$extractPath\\*" "$installDir\\" >nul 2>&1
-start "" "$installDir\\$exeName"
-''');
+            // Rename the running EXE (NTFS allows this even while running)
+            final oldExe = File(currentExe);
+            if (oldExe.existsSync()) {
+              oldExe.renameSync(currentExe + '.old');
+            }
 
+            // Copy all extracted files over (EXE path is now free)
+            final entities = extractDir.listSync(recursive: true);
+            for (final entity in entities) {
+              if (entity is File) {
+                final relPath =
+                    entity.path.substring(extractPath.length + 1);
+                final destPath = '$installDir\\$relPath';
+                try {
+                  final parent = File(destPath).parent;
+                  if (!parent.existsSync()) {
+                    parent.createSync(recursive: true);
+                  }
+                  if (File(destPath).existsSync()) {
+                    File(destPath).deleteSync();
+                  }
+                  entity.copySync(destPath);
+                } catch (_) {
+                  // File is locked (DLL) — skip, old one works fine
+                }
+              }
+            }
+
+            // Launch the new EXE and exit
             onProgress(const DownloadProgress(state: DownloadState.launching));
-            Process.start('cmd', ['/c', batchPath]);
+            await Process.start(currentExe, []);
             exit(0);
           } catch (e) {
             final err = DownloadProgress(
@@ -162,16 +171,5 @@ start "" "$installDir\\$exeName"
       onProgress(err);
       return err;
     }
-  }
-
-  static File? _findExe(Directory dir) {
-    if (!dir.existsSync()) return null;
-    final entities = dir.listSync(recursive: true);
-    for (final entity in entities) {
-      if (entity is File && entity.path.endsWith('.exe')) {
-        return entity;
-      }
-    }
-    return null;
   }
 }
