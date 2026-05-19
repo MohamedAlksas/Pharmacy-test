@@ -126,22 +126,17 @@ class DownloadService {
             final installDir = File(currentExe).parent.path;
             final exeName = exeFile.path.split('\\').last;
 
-            // Write a batch file that renames the ENTIRE install directory (avoids all file locks),
-            // copies new files to a fresh directory, launches the new EXE, then cleans up.
-            // Launched via cmd /c start — fully detached process that survives app exit.
-            final parts = installDir.split('\\');
-            final dirName = parts.last;
-            final parentDir = parts.take(parts.length - 1).join('\\');
+            // Write a batch file that waits for the old app to fully exit,
+            // then copies new files over and launches the new EXE.
+            // Launched via cmd /c start — fully detached process.
             final batchPath = '$installDir\\update.bat';
             final batchContent = '''
 @echo off
-timeout /t 3 /nobreak >nul
-ren "$installDir" "$dirName.old"
-mkdir "$installDir"
+timeout /t 15 /nobreak >nul
 copy /y "$extractPath\\*" "$installDir\\" >nul 2>&1
-start "" "$installDir\\$exeName"
-timeout /t 5 /nobreak >nul
-rmdir /s /q "$parentDir\\$dirName.old" >nul 2>&1
+if exist "$installDir\\$exeName" (
+    start "" "$installDir\\$exeName"
+)
 ''';
             File(batchPath).writeAsStringSync(batchContent);
 
