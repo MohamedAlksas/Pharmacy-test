@@ -1,12 +1,12 @@
 {
-    "latestVersion":  "1.0.10",
-    "latestBuildNumber":  10,
-    "downloadUrl":  "https://github.com/MohamedAlksas/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
-    "mandatory":  false,
-    "releaseNotes":  [
-                         "Enhanced inventory search with auto-complete",
-                         "Fixed Arabic translation for expiry dates",
-                         "Improved dark mode contrast in reports",
-                         "Performance optimizations for large inventories"
-                     ]
+    "latestVersion": "1.0.8",
+    "latestBuildNumber": 8,
+    "downloadUrl": "https://github.com/MohamedAlksas/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
+    "mandatory": false,
+    "releaseNotes": [
+        "Enhanced inventory search with auto-complete",
+        "Fixed Arabic translation for expiry dates",
+        "Improved dark mode contrast in reports",
+        "Performance optimizations for large inventories"
+    ]
 }
