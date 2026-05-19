@@ -128,7 +128,7 @@ class DownloadService {
               }
             }
 
-            onProgress(const DownloadProgress(
+            onProgress(DownloadProgress(
               state: DownloadState.done,
               filePath: currentExe,
             ));
