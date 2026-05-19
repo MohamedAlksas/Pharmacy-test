@@ -82,12 +82,14 @@ class _UpdateDialogState extends State<UpdateDialog> {
               const SizedBox(height: 8),
               Text(
                 _downloading
-                    ? _progress.state == DownloadState.done
-                        ? 'Launching installer...'
-                        : _progress.state == DownloadState.error
-                            ? _progress.error ?? 'Download failed'
-                            : 'Version ${widget.version.latestVersion}'
-                        : 'Version ${widget.version.latestVersion} is now available.',
+                    ? _progress.state == DownloadState.extracting
+                        ? 'Extracting update package...'
+                        : _progress.state == DownloadState.launching
+                            ? 'Launching installer...'
+                            : _progress.state == DownloadState.error
+                                ? _progress.error ?? 'Download failed'
+                                : 'Version ${widget.version.latestVersion}'
+                    : 'Version ${widget.version.latestVersion} is now available.',
                 style: TextStyle(
                   fontSize: 14,
                   color: isDark ? Colors.white70 : Colors.black54,
