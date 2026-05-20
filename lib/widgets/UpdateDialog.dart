@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/app_version.dart';
 import 'package:graduation_project/Services/download_service.dart';
 import 'package:graduation_project/Services/update_service.dart';
+import 'package:graduation_project/Models/app_localizations.dart';
 
 class UpdateCheckScope extends StatefulWidget {
   final Widget child;
@@ -74,9 +75,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
               Text(
                 _downloading
                     ? _progress.state == DownloadState.launching
-                        ? 'Installing Update'
-                        : 'Downloading Update...'
-                    : 'Update Available',
+                        ? context.tr.installingUpdate
+                        : context.tr.downloadingUpdate
+                    : context.tr.updateAvailable,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -125,7 +126,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   child: ElevatedButton.icon(
                     onPressed: _startDownload,
                     icon: const Icon(Icons.download_rounded),
-                    label: const Text('Update Now'),
+                    label: Text(context.tr.updateNow),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0A6B6E),
                       foregroundColor: Colors.white,
@@ -141,7 +142,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   width: double.infinity,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Maybe Later'),
+                    child: Text(context.tr.maybeLater),
                   ),
                 ),
               ],
@@ -152,7 +153,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
+                    child: Text(context.tr.close),
                   ),
                 ),
               ],
@@ -175,7 +176,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "What's new:",
+            context.tr.whatsNew,
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
@@ -248,7 +249,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
     final url = widget.version.downloadUrl;
     if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Download URL not configured.')),
+        SnackBar(content: Text(context.tr.downloadUrlNotConfigured)),
       );
       return;
     }
