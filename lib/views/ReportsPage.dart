@@ -1213,8 +1213,8 @@ class _ReportsPageState extends State<ReportsPage>
       final sheet = excel['Reports'];
 
       final headerStyle = CellStyle(
-        bold: true, backgroundColorHex: ExcelColor(int.parse('0D6EFD', radix: 16) | 0xFF000000),
-        fontColorHex: ExcelColor(0xFFFFFFFF),
+        bold: true, backgroundColorHex: ExcelColor.fromInt(0xFF0D6EFD),
+        fontColorHex: ExcelColor.fromInt(0xFFFFFFFF),
       );
 
       final headers = ['Name', 'SKU', 'Category', 'Quantity', 'Unit',
@@ -1245,8 +1245,8 @@ class _ReportsPageState extends State<ReportsPage>
           TextCellValue(status),
           TextCellValue(m.location.isEmpty ? '-' : m.location),
         ]);
-        final fg = ExcelColor(int.parse(colorHex, radix: 16) | 0xFF000000);
-        final bg = ExcelColor((int.parse(colorHex, radix: 16) & 0xFFFFFF) | 0x20000000);
+        final fg = ExcelColor.fromInt(int.parse(colorHex, radix: 16) | 0xFF000000);
+        final bg = ExcelColor.fromInt((int.parse(colorHex, radix: 16) & 0xFFFFFF) | 0x20000000);
         sheet.cell(CellIndex.indexByColumnRow(
             columnIndex: 6, rowIndex: rowIdx)).cellStyle = CellStyle(
           fontColorHex: fg, backgroundColorHex: bg,
@@ -1268,7 +1268,7 @@ class _ReportsPageState extends State<ReportsPage>
       for (int i = 0; i < 8; i++) {
         sheet.cell(CellIndex.indexByColumnRow(
             columnIndex: i, rowIndex: sumRowIdx)).cellStyle = CellStyle(
-          bold: true, backgroundColorHex: ExcelColor(0xFFF0F0F0),
+          bold: true, backgroundColorHex: ExcelColor.fromInt(0xFFF0F0F0),
         );
       }
 
