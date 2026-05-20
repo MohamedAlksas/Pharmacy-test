@@ -1,11 +1,15 @@
 {
-  "latestVersion": "1.0.19",
-  "latestBuildNumber": 19,
+  "latestVersion": "1.0.20",
+  "latestBuildNumber": 20,
   "downloadUrl": "https://github.com/test-pharm/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
-    "Configurable low-stock & expiry thresholds in Settings",
-    "Loading skeletons on Dashboard, Inventory, and Reports pages",
-    "Smooth shimmer animation while data loads"
+    "Removed duplicate SidebarWidget.dart (compilation fix)",
+    "Dashboard: removed decorative search, added category pie chart, fixed bell count mismatch",
+    "Inventory: fixed delete undo race condition (Completer-based)",
+    "Reports: localized chart labels, safe file export (no Process.start)",
+    "Orders: localized approve/reject snackbar messages",
+    "Stocktake: converted to StatefulWidget for live updates",
+    "Threshold Settings: added form validation + reset to defaults button"
   ]
 }
