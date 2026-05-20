@@ -10,6 +10,7 @@ import 'package:graduation_project/views/UserInfo.dart';
 import 'package:graduation_project/main.dart';
 import 'package:graduation_project/Services/update_service.dart';
 import 'package:graduation_project/views/StocktakePage.dart';
+import 'package:graduation_project/views/ThresholdSettingsPage.dart';
 
 class MainLayout extends StatefulWidget {
   final int initialIndex;
@@ -47,7 +48,7 @@ class _MainLayoutState extends State<MainLayout> {
       StocktakePage(),
       ReportsPage(),
       OrdersPage(),
-      UserInfoPage(),
+      ThresholdSettingsPage(),
     ];
   }
 

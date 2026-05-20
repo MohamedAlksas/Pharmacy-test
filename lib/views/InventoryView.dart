@@ -10,6 +10,7 @@ import 'package:graduation_project/widgets/AddMaterial.dart';
 import 'package:graduation_project/widgets/ExpiryEditDialog.dart';
 import 'package:graduation_project/widgets/ExportMaterial.dart';
 import 'package:graduation_project/Models/app_localizations.dart';
+import 'package:graduation_project/widgets/skeletons.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -77,7 +78,7 @@ class _InventoryPageState extends State<InventoryPage> {
             const SizedBox(height: 16),
             Expanded(
               child: provider.loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const InventorySkeleton()
                   : provider.error != null
                   ? _buildErrorState(context, provider)
                   : _buildContent(context, provider, products),

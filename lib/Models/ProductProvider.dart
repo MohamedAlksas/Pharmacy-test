@@ -8,11 +8,20 @@ import 'package:graduation_project/Services/MaterialSerivce.dart';
 import 'package:graduation_project/Services/ProductService.dart';
 import 'package:graduation_project/Services/TransliterationService.dart';
 import 'package:graduation_project/Services/alertService.dart';
+import 'package:graduation_project/Services/thresholdService.dart';
 
 class ProductProvider extends ChangeNotifier {
   List<MaterialModel> _products = [];
   bool _loading = false;
   String? _error;
+
+  int _lowStockThreshold = 100;
+  int _expiringSoonDays = 30;
+
+  Future<void> loadThresholds() async {
+    _lowStockThreshold = await ThresholdService.getLowStockThreshold();
+    _expiringSoonDays = await ThresholdService.getExpiringSoonDays();
+  }
 
   // Stores confirmed server-writes that the backend hasn't reflected yet in
   // its GET response (read-after-write lag).  Applied after every fetch —
@@ -38,15 +47,16 @@ class ProductProvider extends ChangeNotifier {
     }
 
     final days = expiry.difference(DateTime.now()).inDays;
-    return days > 0 && days <= 30;
+    return days > 0 && days <= _expiringSoonDays;
   }).length;
 
   int getCriticalAlertsCount() => expiredCount + expiringSoonCount;
 
   int get lowStockCount =>
-      _products.where((product) => product.quantity < 100).length;
+      _products.where((product) => product.quantity < _lowStockThreshold).length;
 
   Future<void> loadProducts() async {
+    await loadThresholds();
     if (!AuthService.isAuthenticated) {
       clear(notify: true);
       return;
@@ -169,6 +179,7 @@ class ProductProvider extends ChangeNotifier {
   Future<void> _replaceProductsFromApi() async {
     _products = await _fetchProductsFromApi();
     _applyPendingOverrides();
+    await AlertService.reloadThresholds();
     _syncDerivedState();
   }
 

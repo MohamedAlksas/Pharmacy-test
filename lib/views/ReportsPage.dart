@@ -13,6 +13,7 @@ import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/Models/materialModel.dart';
+import 'package:graduation_project/widgets/skeletons.dart';
 
 class ReportsPage extends StatefulWidget {
   final VoidCallback? onGoToOrders;
@@ -257,7 +258,7 @@ class _ReportsPageState extends State<ReportsPage>
           ),
           const SizedBox(height: 16),
           if (provider.loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
+            const Expanded(child: ReportsSkeleton())
           else
             Expanded(
               child: Column(

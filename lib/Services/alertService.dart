@@ -1,8 +1,17 @@
 import 'package:graduation_project/Models/alertModel.dart';
 import 'package:graduation_project/Models/materialModel.dart';
+import 'package:graduation_project/Services/thresholdService.dart';
 
 class AlertService {
   static final List<AlertModel> _alerts = [];
+
+  static int _lowStockThreshold = 100;
+  static int _expiringSoonDays = 30;
+
+  static Future<void> reloadThresholds() async {
+    _lowStockThreshold = await ThresholdService.getLowStockThreshold();
+    _expiringSoonDays = await ThresholdService.getExpiringSoonDays();
+  }
 
   // ── Init from a live list (called by ProductProvider after every fetch) ──
   static void initializeAlertsFromModels(List<MaterialModel> materials) {
@@ -39,7 +48,7 @@ class AlertService {
       ));
     }
 
-    if (material.quantity < 100) {
+    if (material.quantity < _lowStockThreshold) {
       _alerts.add(AlertModel(
         id: 'alert_lowstock_${material.id}',
         alertType: 'low_stock',
@@ -62,7 +71,7 @@ class AlertService {
   static bool _isExpiringSoon(String expiryDate) {
     try {
       final diff = DateTime.parse(expiryDate).difference(DateTime.now()).inDays;
-      return diff > 0 && diff <= 30;
+      return diff > 0 && diff <= _expiringSoonDays;
     } catch (_) {
       return false;
     }

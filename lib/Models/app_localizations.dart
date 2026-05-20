@@ -349,4 +349,16 @@ class AppLocalizations {
   // ── Printing snackbars ─────────────────────────────────────────────────────
   String get printingOrders => isArabic ? 'جارٍ طباعة الطلبات...' : 'Printing orders…';
   String get printingReport => isArabic ? 'جارٍ طباعة التقرير...' : 'Printing report…';
+
+  // ── Threshold Settings ──────────────────────────────────────────────────────
+  String get thresholdSettings => isArabic ? 'إعدادات الحدود' : 'Threshold Settings';
+  String get lowStockThreshold => isArabic ? 'حد المخزون المنخفض' : 'Low Stock Threshold';
+  String get lowStockThresholdDesc => isArabic
+      ? 'الحد الأدنى للكمية الذي تعتبر عنده المادة منخفضة المخزون.'
+      : 'Minimum quantity below which a material is considered low-stock.';
+  String get expiringSoonThreshold => isArabic ? 'أيام انتهاء الصلاحية الوشيك' : 'Expiring Soon Days';
+  String get expiringSoonThresholdDesc => isArabic
+      ? 'عدد الأيام المتبقية قبل انتهاء الصلاحية لاعتبار المادة وشيكة الانتهاء.'
+      : 'Days remaining before expiry to consider a material as expiring soon.';
+  String get settingsSaved => isArabic ? 'تم حفظ الإعدادات' : 'Settings saved';
 }

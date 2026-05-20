@@ -8,6 +8,7 @@ import 'package:graduation_project/Services/notificationService.dart';
 import 'package:graduation_project/Services/alertService.dart';
 import 'package:graduation_project/main.dart';
 import 'package:graduation_project/views/UserInfo.dart';
+import 'package:graduation_project/widgets/skeletons.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -59,7 +60,7 @@ class _DashboardPageState extends State<DashboardPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
       child: provider.loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const DashboardSkeleton()
           : SingleChildScrollView(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,12 +1,11 @@
 {
-  "latestVersion": "1.0.18",
-  "latestBuildNumber": 18,
+  "latestVersion": "1.0.19",
+  "latestBuildNumber": 19,
   "downloadUrl": "https://github.com/test-pharm/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
-    "Keyboard shortcuts: Ctrl+F/N/E, F5, Del in inventory",
-    "Bulk select with checkboxes + bulk delete/export",
-    "Collapsible sidebar (icon-only mode)",
-    "Click material name to view full details popup"
+    "Configurable low-stock & expiry thresholds in Settings",
+    "Loading skeletons on Dashboard, Inventory, and Reports pages",
+    "Smooth shimmer animation while data loads"
   ]
 }
