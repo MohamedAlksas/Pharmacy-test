@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:graduation_project/Models/orderModel.dart';
 import 'package:graduation_project/Models/ProductProvider.dart';
 import 'package:graduation_project/Models/UserRoleModel.dart';
@@ -19,13 +20,16 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
   String _availabilityFilter = 'All';
   int? _sortColumnIndex;
   bool _sortAscending = true;
+  final Set<String> _selectedIds = {};
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -43,23 +47,132 @@ class _InventoryPageState extends State<InventoryPage> {
     }
     final products = filtered;
 
-    return Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        final ctrl = HardwareKeyboard.instance.isControlPressed;
+        if (ctrl && event.logicalKey == LogicalKeyboardKey.keyF) {
+          _searchFocus.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (ctrl && event.logicalKey == LogicalKeyboardKey.keyN) {
+          _openProductDialog(context, provider);
+          return KeyEventResult.handled;
+        }
+        if (ctrl && event.logicalKey == LogicalKeyboardKey.keyE) {
+          _openExportDialog(context, provider);
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.f5) {
+          provider.loadProducts();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.delete &&
+            _selectedIds.length == 1) {
+          final sel = provider.products.where((p) => _selectedIds.contains(p.id));
+          if (sel.isNotEmpty) _confirmDelete(context, provider, sel.first);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            _buildToolbar(context, provider),
+            const SizedBox(height: 12),
+            if (_selectedIds.isNotEmpty) _buildBulkBar(context, provider),
+            const SizedBox(height: 12),
+            Expanded(
+              child: provider.loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : provider.error != null
+                  ? _buildErrorState(context, provider)
+                  : _buildContent(context, provider, products),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Bulk action bar ─────────────────────────────────────────────────────────
+
+  Widget _buildBulkBar(BuildContext context, ProductProvider provider) {
+    final t = context.tr;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF0D6EFD).withOpacity(0.3)),
+      ),
+      child: Row(
         children: [
-          _buildToolbar(context, provider),
-          const SizedBox(height: 16),
-          Expanded(
-            child: provider.loading
-                ? const Center(child: CircularProgressIndicator())
-                : provider.error != null
-                ? _buildErrorState(context, provider)
-                : _buildContent(context, provider, products),
+          Icon(Icons.checklist, size: 18, color: const Color(0xFF0D6EFD)),
+          const SizedBox(width: 8),
+          Text('${_selectedIds.length} ${t.selectedLabel}',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const Spacer(),
+          IconButton(
+            tooltip: t.exportReport,
+            icon: const Icon(Icons.file_download_outlined, size: 20),
+            onPressed: () => _bulkExport(context, provider),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: t.delete,
+            icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+            onPressed: () => _bulkDelete(context, provider),
+          ),
+          const SizedBox(width: 4),
+          TextButton(
+            onPressed: () => setState(() => _selectedIds.clear()),
+            child: Text(t.cancel, style: const TextStyle(fontSize: 12)),
           ),
         ],
       ),
     );
   }
+
+  Future<void> _bulkDelete(BuildContext context, ProductProvider provider) async {
+    final t = context.tr;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t.delete),
+        content: Text('${t.deleteConfirmMsg} (${_selectedIds.length} items)'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.cancel)),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(t.delete, style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    for (final id in _selectedIds.toList()) {
+      await provider.deleteProduct(id);
+    }
+    if (!mounted) return;
+    setState(() => _selectedIds.clear());
+  }
+
+  Future<void> _bulkExport(BuildContext context, ProductProvider provider) async {
+    final t = context.tr;
+    final selectedProducts =
+        provider.products.where((p) => _selectedIds.contains(p.id)).toList();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${t.exportReport}: ${selectedProducts.length} items')),
+    );
+    // Future: trigger Excel export with only selected items
+    setState(() => _selectedIds.clear());
+  }
+
+  // ─── Toolbar ─────────────────────────────────────────────────────────────────
 
   Widget _buildToolbar(BuildContext context, ProductProvider provider) {
     return Row(
@@ -67,9 +180,10 @@ class _InventoryPageState extends State<InventoryPage> {
         Expanded(
           child: TextField(
             controller: _searchCtrl,
+            focusNode: _searchFocus,
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              hintText: context.tr.searchByNameOrSku,
+              hintText: '${context.tr.searchByNameOrSku}  (Ctrl+F)',
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: Theme.of(context).cardColor,
@@ -93,22 +207,17 @@ class _InventoryPageState extends State<InventoryPage> {
               items: [
                 DropdownMenuItem(value: 'All', child: Text(context.tr.all)),
                 DropdownMenuItem(value: 'Available', child: Text(context.tr.available)),
-                DropdownMenuItem(
-                  value: 'Unavailable',
-                  child: Text(context.tr.unavailable),
-                ),
+                DropdownMenuItem(value: 'Unavailable', child: Text(context.tr.unavailable)),
               ],
               onChanged: (value) {
-                if (value != null) {
-                  setState(() => _availabilityFilter = value);
-                }
+                if (value != null) setState(() => _availabilityFilter = value);
               },
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         IconButton(
-          tooltip: context.tr.refreshTooltip,
+          tooltip: '${context.tr.refreshTooltip} (F5)',
           onPressed: provider.loadProducts,
           icon: const Icon(Icons.refresh),
         ),
@@ -117,18 +226,20 @@ class _InventoryPageState extends State<InventoryPage> {
           ElevatedButton.icon(
             onPressed: () => _openProductDialog(context, provider),
             icon: const Icon(Icons.add),
-            label: Text(context.tr.addProduct),
+            label: Text('${context.tr.addProduct}  (Ctrl+N)'),
           ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
             onPressed: () => _openExportDialog(context, provider),
             icon: const Icon(Icons.upload_outlined),
-            label: Text(context.tr.exportProductBtn),
+            label: Text('${context.tr.exportProductBtn}  (Ctrl+E)'),
           ),
         ],
       ],
     );
   }
+
+  // ─── Error state ────────────────────────────────────────────────────────────
 
   Widget _buildErrorState(BuildContext context, ProductProvider provider) {
     return Center(
@@ -137,20 +248,15 @@ class _InventoryPageState extends State<InventoryPage> {
         children: [
           const Icon(Icons.error_outline, color: Colors.red, size: 52),
           const SizedBox(height: 12),
-          Text(
-            provider.error!,
-            style: const TextStyle(color: Colors.red),
-            textAlign: TextAlign.center,
-          ),
+          Text(provider.error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
           const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: provider.loadProducts,
-            child: Text(context.tr.retry),
-          ),
+          ElevatedButton(onPressed: provider.loadProducts, child: Text(context.tr.retry)),
         ],
       ),
     );
   }
+
+  // ─── Content table ──────────────────────────────────────────────────────────
 
   Widget _buildContent(
     BuildContext context,
@@ -164,11 +270,11 @@ class _InventoryPageState extends State<InventoryPage> {
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Center(
-          child: Text(context.tr.noProductsFiltered),
-        ),
+        child: Center(child: Text(context.tr.noProductsFiltered)),
       );
     }
+
+    final allSelected = products.every((p) => _selectedIds.contains(p.id));
 
     return Container(
       decoration: BoxDecoration(
@@ -186,47 +292,85 @@ class _InventoryPageState extends State<InventoryPage> {
             sortAscending: _sortAscending,
             columns: [
               DataColumn(
+                label: SizedBox(
+                  width: 24,
+                  child: Checkbox(
+                    value: products.isEmpty ? false : allSelected,
+                    tristate: products.isNotEmpty && !allSelected && _selectedIds.isNotEmpty,
+                    onChanged: (v) {
+                      setState(() {
+                        if (v == true) {
+                          _selectedIds.addAll(products.map((p) => p.id));
+                        } else {
+                          _selectedIds.removeAll(products.map((p) => p.id));
+                        }
+                      });
+                    },
+                  ),
+                ),
+              ),
+              DataColumn(
                 label: Text(context.tr.materialName),
                 onSort: (colIndex, asc) => setState(() {
-                  _sortColumnIndex = colIndex;
-                  _sortAscending = asc;
+                  _sortColumnIndex = colIndex; _sortAscending = asc;
                 }),
               ),
               DataColumn(
                 label: Text(context.tr.quantity),
                 numeric: true,
                 onSort: (colIndex, asc) => setState(() {
-                  _sortColumnIndex = colIndex;
-                  _sortAscending = asc;
+                  _sortColumnIndex = colIndex; _sortAscending = asc;
                 }),
               ),
               DataColumn(
                 label: Text(context.tr.unit),
                 onSort: (colIndex, asc) => setState(() {
-                  _sortColumnIndex = colIndex;
-                  _sortAscending = asc;
+                  _sortColumnIndex = colIndex; _sortAscending = asc;
                 }),
               ),
               DataColumn(
                 label: Text(context.tr.availabilityColumn),
                 onSort: (colIndex, asc) => setState(() {
-                  _sortColumnIndex = colIndex;
-                  _sortAscending = asc;
+                  _sortColumnIndex = colIndex; _sortAscending = asc;
                 }),
               ),
               DataColumn(
                 label: Text(context.tr.expiryDate),
                 onSort: (colIndex, asc) => setState(() {
-                  _sortColumnIndex = colIndex;
-                  _sortAscending = asc;
+                  _sortColumnIndex = colIndex; _sortAscending = asc;
                 }),
               ),
               DataColumn(label: Text(context.tr.actions)),
             ],
             rows: products.map((product) {
+              final isSelected = _selectedIds.contains(product.id);
               return DataRow(
+                selected: isSelected,
+                onSelectChanged: (v) {
+                  setState(() {
+                    if (v == true) { _selectedIds.add(product.id); }
+                    else { _selectedIds.remove(product.id); }
+                  });
+                },
                 cells: [
-                  DataCell(_productSummary(context, product)),
+                  DataCell(SizedBox(
+                    width: 24,
+                    child: Checkbox(
+                      value: isSelected,
+                      onChanged: (v) {
+                        setState(() {
+                          if (v == true) { _selectedIds.add(product.id); }
+                          else { _selectedIds.remove(product.id); }
+                        });
+                      },
+                    ),
+                  )),
+                  DataCell(
+                    GestureDetector(
+                      onTap: () => _showDetails(context, product),
+                      child: _productSummary(context, product),
+                    ),
+                  ),
                   DataCell(Text(_databaseQuantityText(product))),
                   DataCell(Text(product.unit.isEmpty ? '-' : product.unit)),
                   DataCell(_availabilityChip(context, product.isAvailable)),
@@ -241,18 +385,22 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
+  // ─── Product summary ────────────────────────────────────────────────────────
+
   Widget _productSummary(BuildContext context, MaterialModel product) {
     final textColor = Theme.of(context).textTheme.bodySmall?.color ?? Colors.black54;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(product.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(product.name,
+            style: const TextStyle(fontWeight: FontWeight.w600,
+                decoration: TextDecoration.underline,
+                decorationColor: Colors.blue,
+                color: Colors.blue)),
         const SizedBox(height: 4),
-        Text(
-          '${context.tr.skuPrefix}${product.sku}',
-          style: TextStyle(fontSize: 12, color: textColor),
-        ),
+        Text('${context.tr.skuPrefix}${product.sku}',
+            style: TextStyle(fontSize: 12, color: textColor)),
       ],
     );
   }
@@ -272,6 +420,8 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
+  // ─── Action buttons ─────────────────────────────────────────────────────────
+
   Widget _buildActions(
     BuildContext context,
     ProductProvider provider,
@@ -290,8 +440,7 @@ class _InventoryPageState extends State<InventoryPage> {
       children: [
         IconButton(
           tooltip: context.tr.editProduct,
-          onPressed: () =>
-              _openProductDialog(context, provider, existingProduct: product),
+          onPressed: () => _openProductDialog(context, provider, existingProduct: product),
           icon: const Icon(Icons.edit_outlined),
         ),
         IconButton(
@@ -303,6 +452,8 @@ class _InventoryPageState extends State<InventoryPage> {
       ],
     );
   }
+
+  // ─── Dialogs ────────────────────────────────────────────────────────────────
 
   Future<void> _openProductDialog(
     BuildContext context,
@@ -319,9 +470,7 @@ class _InventoryPageState extends State<InventoryPage> {
       builder: (_) => AddMaterialDialog(provider: provider),
     );
 
-    if (payload == null) {
-      return;
-    }
+    if (payload == null) return;
 
     final isExistingStockAdd = payload['_mode'] == 'existing';
     final String? error;
@@ -334,9 +483,7 @@ class _InventoryPageState extends State<InventoryPage> {
       error = await provider.addProduct(payload);
     }
 
-    if (!context.mounted) {
-      return;
-    }
+    if (!context.mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -365,13 +512,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isExistingStockAdd
-              ? context.tr.stockUpdated
-              : context.tr.productAdded,
-        ),
-      ),
+      SnackBar(content: Text(isExistingStockAdd ? context.tr.stockUpdated : context.tr.productAdded)),
     );
   }
 
@@ -410,7 +551,6 @@ class _InventoryPageState extends State<InventoryPage> {
       ),
     );
 
-    // Determine the remaining quantity from the body that was sent to the API.
     final remainingQty = result.body['quantity'] as int? ?? -1;
     final outOfStock = remainingQty == 0;
 
@@ -426,10 +566,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Future<void> _openExpiryEditDialog(
-    BuildContext context,
-    MaterialModel product,
-  ) async {
+  Future<void> _openExpiryEditDialog(BuildContext context, MaterialModel product) async {
     final newExpiry = await showDialog<String>(
       context: context,
       builder: (_) => ExpiryEditDialog(product: product),
@@ -456,8 +593,7 @@ class _InventoryPageState extends State<InventoryPage> {
     NotificationService.addNotification(
       AppNotification(
         title: context.tr.editRequests,
-        body:
-            '$createdBy requested expiry change for ${product.name} (${product.sku})',
+        body: '$createdBy requested expiry change for ${product.name} (${product.sku})',
         materialName: product.name,
         productSku: product.sku,
         proposedExpiry: newExpiry,
@@ -474,9 +610,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${context.tr.editRequestSubmitted}\n${context.tr.awaitingApproval}'),
-      ),
+      SnackBar(content: Text('${context.tr.editRequestSubmitted}\n${context.tr.awaitingApproval}')),
     );
   }
 
@@ -491,14 +625,11 @@ class _InventoryPageState extends State<InventoryPage> {
         title: Text(context.tr.deleteTitle),
         content: Text(context.tr.deleteConfirmNamed(product.name)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(context.tr.cancel),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text(context.tr.cancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(context.tr.delete, style: TextStyle(color: Colors.white)),
+            child: Text(context.tr.delete, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -514,10 +645,7 @@ class _InventoryPageState extends State<InventoryPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$productName ${context.tr.deleteTitle}...'),
-        action: SnackBarAction(
-          label: context.tr.undo,
-          onPressed: () => _cancelled = true,
-        ),
+        action: SnackBarAction(label: context.tr.undo, onPressed: () => _cancelled = true),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -529,12 +657,12 @@ class _InventoryPageState extends State<InventoryPage> {
     if (!context.mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(error ?? context.tr.productDeleted(productName)),
-        backgroundColor: error == null ? Colors.green : Colors.red,
-      ),
+      SnackBar(content: Text(error ?? context.tr.productDeleted(productName)),
+          backgroundColor: error == null ? Colors.green : Colors.red),
     );
   }
+
+  // ─── Detail popup ───────────────────────────────────────────────────────────
 
   void _showDetails(BuildContext context, MaterialModel product) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -549,7 +677,7 @@ class _InventoryPageState extends State<InventoryPage> {
         titlePadding: EdgeInsets.zero,
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
-          width: 420,
+          width: 440,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -568,11 +696,8 @@ class _InventoryPageState extends State<InventoryPage> {
                         color: (product.isAvailable ? Colors.green : Colors.orange).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(
-                        Icons.inventory_2_outlined,
-                        color: product.isAvailable ? Colors.green : Colors.orange,
-                        size: 28,
-                      ),
+                      child: Icon(Icons.inventory_2_outlined,
+                          color: product.isAvailable ? Colors.green : Colors.orange, size: 28),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -580,10 +705,10 @@ class _InventoryPageState extends State<InventoryPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(product.name,
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
                           const SizedBox(height: 2),
                           Text('${context.tr.skuPrefix}${product.sku}',
-                            style: TextStyle(fontSize: 13, color: mutedColor)),
+                              style: TextStyle(fontSize: 13, color: mutedColor)),
                         ],
                       ),
                     ),
@@ -594,22 +719,27 @@ class _InventoryPageState extends State<InventoryPage> {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    _detailRow(Icons.category_outlined, context.tr.category, product.category.isNotEmpty ? product.category : product.categoryId.toString()),
+                    _detailRow(Icons.category_outlined, context.tr.category,
+                        product.category.isNotEmpty ? product.category : product.categoryId.toString()),
                     const Divider(height: 20),
-                    _detailRow(Icons.inventory_outlined, context.tr.quantity, '${product.quantity} ${product.unit}'),
+                    _detailRow(Icons.inventory_outlined, context.tr.quantity,
+                        '${product.quantity} ${product.unit}'),
                     const Divider(height: 20),
-                    _detailRow(Icons.qr_code_outlined, context.tr.logNumber, product.lot.isEmpty ? '-' : product.lot),
+                    _detailRow(Icons.qr_code_outlined, context.tr.logNumber,
+                        product.lot.isEmpty ? '-' : product.lot),
                     const Divider(height: 20),
-                    _detailRow(Icons.location_on_outlined, context.tr.storageLocation, product.location.isEmpty ? '-' : product.location),
+                    _detailRow(Icons.location_on_outlined, context.tr.storageLocation,
+                        product.location.isEmpty ? '-' : product.location),
                     const Divider(height: 20),
-                    _detailRow(Icons.calendar_today_outlined, context.tr.expiryDate, _formatDate(product.expiryDate)),
+                    _detailRow(Icons.calendar_today_outlined, context.tr.expiryDate,
+                        _formatDate(product.expiryDate)),
                     const Divider(height: 20),
-                    _detailRow(
-                      Icons.check_circle_outlined,
-                      context.tr.status,
-                      product.isAvailable ? context.tr.available : context.tr.unavailable,
-                      valueColor: product.isAvailable ? Colors.green : Colors.orange,
-                    ),
+                    _detailRow(Icons.check_circle_outlined, context.tr.status,
+                        product.isAvailable ? context.tr.available : context.tr.unavailable,
+                        valueColor: product.isAvailable ? Colors.green : Colors.orange),
+                    const Divider(height: 20),
+                    _detailRow(Icons.business_outlined, context.tr.storageLocation,
+                        product.location.isEmpty ? '-' : product.location),
                   ],
                 ),
               ),
@@ -633,7 +763,9 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   Widget _detailRow(IconData icon, String label, String value, {Color? valueColor}) {
-    final muted = Theme.of(context).brightness == Brightness.dark ? Colors.white60 : Colors.black54;
+    final muted = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white60
+        : Colors.black54;
     return Row(
       children: [
         Icon(icon, size: 18, color: muted),
@@ -652,14 +784,13 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  String _databaseQuantityText(MaterialModel product) {
-    return product.quantity.toString();
-  }
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  String _databaseQuantityText(MaterialModel product) => product.quantity.toString();
 
   bool _matchesFilters(MaterialModel product) {
     final query = _searchCtrl.text.trim().toLowerCase();
-    final matchesSearch =
-        query.isEmpty ||
+    final matchesSearch = query.isEmpty ||
         product.name.toLowerCase().contains(query) ||
         product.sku.toLowerCase().contains(query) ||
         product.location.toLowerCase().contains(query);

@@ -248,6 +248,7 @@ class AppLocalizations {
   String get categoriesLabel => isArabic ? 'فئات' : 'categories';
   String get analytics => isArabic ? 'تحليلات' : 'Analytics';
   String get expiryTimeline => isArabic ? 'الجدول الزمني لانتهاء الصلاحية' : 'Expiry Timeline';
+  String get selectedLabel => isArabic ? 'محدد' : 'selected';
 
   // ── User info / Settings ───────────────────────────────────────────────────
   String get userInfo => isArabic ? 'معلومات المستخدم' : 'User Info';

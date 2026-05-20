@@ -22,6 +22,7 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   late int _selectedIndex;
+  bool _sidebarCollapsed = false;
 
   @override
   void initState() {
@@ -104,8 +105,10 @@ class _MainLayoutState extends State<MainLayout> {
           body: Row(
             children: [
               // ── Sidebar ────────────────────────────────────────────────────
-              Container(
-                width: 220,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                width: _sidebarCollapsed ? 60 : 220,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 color: isDark
                     ? const Color(0xFF071014)
@@ -114,8 +117,8 @@ class _MainLayoutState extends State<MainLayout> {
                   children: [
                     // App brand + user name
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
+                      padding: EdgeInsets.fromLTRB(
+                          _sidebarCollapsed ? 8 : 14, 6, 8, 6),
                       child: Row(
                         children: [
                           CircleAvatar(
@@ -130,71 +133,74 @@ class _MainLayoutState extends State<MainLayout> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  tr.pharmaWarehouse,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: isDark
-                                        ? Colors.white
-                                        : Colors.black87,
+                          if (!_sidebarCollapsed) ...[
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tr.pharmaWarehouse,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  fullName,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isDark
-                                        ? Colors.white60
-                                        : Colors.black54,
+                                  Text(
+                                    fullName,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: isDark
+                                          ? Colors.white60
+                                          : Colors.black54,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
 
                     const SizedBox(height: 6),
 
-                    // Role badge
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 14),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AuthService.isWarehouseManager
-                            ? Colors.blue.withOpacity(0.15)
-                            : Colors.green.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        AuthService.isWarehouseManager
-                            ? tr.manager
-                            : tr.supervisor,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                    if (!_sidebarCollapsed)
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
                           color: AuthService.isWarehouseManager
-                              ? Colors.blue
-                              : Colors.green,
+                              ? Colors.blue.withOpacity(0.15)
+                              : Colors.green.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          AuthService.isWarehouseManager
+                              ? tr.manager
+                              : tr.supervisor,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AuthService.isWarehouseManager
+                                ? Colors.blue
+                                : Colors.green,
+                          ),
                         ),
                       ),
-                    ),
 
                     const SizedBox(height: 12),
 
                     // Nav items
                     Expanded(
                       child: ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: _sidebarCollapsed ? 2 : 8),
                         children: menuItems.map((item) {
                           return _sidebarItem(
                               item.icon, item.label, item.index, isDark);
@@ -214,70 +220,86 @@ class _MainLayoutState extends State<MainLayout> {
 
                     // ── Bottom toolbar ─────────────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
+                      padding: EdgeInsets.all(_sidebarCollapsed ? 2.0 : 8.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Dark/light mode toggle
+                          // Collapse toggle
                           IconButton(
-                            onPressed: () {
-                              themeNotifier.value =
-                                  themeNotifier.value == ThemeMode.dark
-                                      ? ThemeMode.light
-                                      : ThemeMode.dark;
-                            },
+                            onPressed: () => setState(
+                                () => _sidebarCollapsed = !_sidebarCollapsed),
                             icon: Icon(
-                              isDark ? Icons.light_mode : Icons.dark_mode,
+                              _sidebarCollapsed
+                                  ? Icons.chevron_right
+                                  : Icons.chevron_left,
                               color: isDark ? Colors.white70 : Colors.black54,
                             ),
-                            tooltip: tr.toggleTheme,
+                            tooltip: _sidebarCollapsed
+                                ? 'Expand sidebar'
+                                : 'Collapse sidebar',
                           ),
-
-                          // ── Language toggle ────────────────────────────────
-                          IconButton(
-                            onPressed: _toggleLanguage,
-                            tooltip: tr.toggleLanguage,
-                            icon: Text(
-                              lang == AppLanguage.ar ? 'EN' : 'عربي',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: isDark
-                                    ? Colors.white70
-                                    : Colors.black54,
+                          if (!_sidebarCollapsed) ...[
+                            // Dark/light mode toggle
+                            IconButton(
+                              onPressed: () {
+                                themeNotifier.value =
+                                    themeNotifier.value == ThemeMode.dark
+                                        ? ThemeMode.light
+                                        : ThemeMode.dark;
+                              },
+                              icon: Icon(
+                                isDark ? Icons.light_mode : Icons.dark_mode,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                              ),
+                              tooltip: tr.toggleTheme,
+                            ),
+                            // ── Language toggle ──────────────────────────────
+                            IconButton(
+                              onPressed: _toggleLanguage,
+                              tooltip: tr.toggleLanguage,
+                              icon: Text(
+                                lang == AppLanguage.ar ? 'EN' : 'عربي',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black54,
+                                ),
                               ),
                             ),
-                          ),
-
-                          const Spacer(),
-
-                          // Logout
-                          IconButton(
-                            onPressed: _logout,
-                            icon: Icon(
-                              Icons.logout,
-                              color: isDark ? Colors.white70 : Colors.black54,
+                            // Logout
+                            IconButton(
+                              onPressed: _logout,
+                              icon: Icon(
+                                Icons.logout,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                              ),
+                              tooltip: tr.logout,
                             ),
-                            tooltip: tr.logout,
-                          ),
+                          ],
                         ],
                       ),
                     ),
-                    FutureBuilder<String>(
-                      future: UpdateService.currentVersion,
-                      builder: (context, snapshot) {
-                        final v = snapshot.data ?? '';
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Text(
-                            v.isNotEmpty ? 'v$v' : '',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? Colors.white38 : Colors.black38,
+                    if (!_sidebarCollapsed)
+                      FutureBuilder<String>(
+                        future: UpdateService.currentVersion,
+                        builder: (context, snapshot) {
+                          final v = snapshot.data ?? '';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text(
+                              v.isNotEmpty ? 'v$v' : '',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark
+                                    ? Colors.white38
+                                    : Colors.black38,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -300,6 +322,26 @@ class _MainLayoutState extends State<MainLayout> {
     final textColor = selected
         ? selectedColor
         : (isDark ? Colors.white : Colors.black87);
+
+    if (_sidebarCollapsed) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Tooltip(
+          message: label,
+          child: Container(
+            decoration: BoxDecoration(
+              color: selected ? selectedColor.withOpacity(0.1) : null,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              icon: Icon(icon,
+                  color: selected ? selectedColor : defaultColor),
+              onPressed: () => _onSelect(index),
+            ),
+          ),
+        ),
+      );
+    }
 
     return ListTile(
       dense: true,
