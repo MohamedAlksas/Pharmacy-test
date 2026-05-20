@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:graduation_project/Models/ProductProvider.dart';
 import 'package:graduation_project/Services/alertService.dart';
@@ -7,6 +8,8 @@ import 'package:graduation_project/Services/notificationService.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:excel/excel.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:graduation_project/Models/app_localizations.dart';
 
 class ReportsPage extends StatefulWidget {
@@ -22,6 +25,8 @@ class _ReportsPageState extends State<ReportsPage> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _selectedCategory = 'All Categories';
   String _selectedStatus = 'All Statuses';
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
 
   bool get isSupervisor => AuthService.isSupervisor;
 
@@ -286,7 +291,16 @@ class _ReportsPageState extends State<ReportsPage> {
           effectiveStatus == 'All Statuses' ||
           status == effectiveStatus ||
           _trStatus(status) == effectiveStatus;
-      return matchSearch && matchCat && matchStatus;
+      final matchDate = _dateFrom == null || _dateTo == null || m.expiryDate.isEmpty;
+      final matchDate2 = matchDate ? true : () {
+        try {
+          final expiry = DateTime.parse(m.expiryDate).toLocal();
+          return !expiry.isBefore(_dateFrom!) && !expiry.isAfter(_dateTo!);
+        } catch (_) {
+          return true;
+        }
+      }();
+      return matchSearch && matchCat && matchStatus && matchDate2;
     }).toList();
 
     return Container(
@@ -328,6 +342,8 @@ class _ReportsPageState extends State<ReportsPage> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    _buildExcelButton(provider),
                   ],
                 ),
               if (!isSupervisor)
@@ -340,6 +356,8 @@ class _ReportsPageState extends State<ReportsPage> {
                     foregroundColor: Colors.white,
                   ),
                 ),
+              const SizedBox(width: 8),
+              _buildExcelButton(provider),
             ],
           ),
           const SizedBox(height: 20),
@@ -441,6 +459,8 @@ class _ReportsPageState extends State<ReportsPage> {
                 context.tr.statusExpired,
                 context.tr.statusLowStock,
               ], (v) => setState(() => _selectedStatus = v!)),
+              const SizedBox(width: 12),
+              _buildDateFilter(isDark),
             ],
           ),
           const SizedBox(height: 20),
@@ -947,5 +967,171 @@ class _ReportsPageState extends State<ReportsPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildDateFilter(bool isDark) {
+    final inputBg = isDark ? const Color(0xFF1A2332) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final hintColor = isDark ? Colors.white38 : Colors.black38;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _dateFrom ?? DateTime.now(),
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2035),
+            );
+            if (picked != null) setState(() => _dateFrom = picked);
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: inputBg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isDark ? const Color(0xFF2A3F5F) : Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.calendar_today, size: 16, color: hintColor),
+                const SizedBox(width: 6),
+                Text(
+                  _dateFrom == null
+                      ? context.tr.filterByDate
+                      : '${_dateFrom!.day}/${_dateFrom!.month}/${_dateFrom!.year}',
+                  style: TextStyle(fontSize: 13, color: _dateFrom == null ? hintColor : textColor),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _dateTo ?? DateTime.now(),
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2035),
+            );
+            if (picked != null) setState(() => _dateTo = picked);
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: inputBg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isDark ? const Color(0xFF2A3F5F) : Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.date_range, size: 16, color: hintColor),
+                const SizedBox(width: 6),
+                Text(
+                  _dateTo == null
+                      ? context.tr.filterByDate
+                      : '${_dateTo!.day}/${_dateTo!.month}/${_dateTo!.year}',
+                  style: TextStyle(fontSize: 13, color: _dateTo == null ? hintColor : textColor),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_dateFrom != null || _dateTo != null)
+          IconButton(
+            icon: Icon(Icons.clear, size: 18, color: hintColor),
+            onPressed: () => setState(() { _dateFrom = null; _dateTo = null; }),
+            tooltip: context.tr.clear,
+            visualDensity: VisualDensity.compact,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildExcelButton(ProductProvider provider) {
+    return ElevatedButton.icon(
+      onPressed: () => _exportToExcel(provider),
+      icon: const Icon(Icons.table_chart_outlined, size: 18),
+      label: Text(context.tr.export),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF198754),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  Future<void> _exportToExcel(ProductProvider provider) async {
+    try {
+      final allMaterials = provider.products;
+      final filtered = allMaterials.where((m) {
+        final matchSearch = m.name.toLowerCase().contains(
+          _searchCtrl.text.toLowerCase(),
+        );
+        return matchSearch;
+      }).toList();
+
+      final excel = Excel.createExcel();
+      final sheet = excel['Reports'];
+
+      sheet.appendRow([
+        'Name',
+        'SKU',
+        'Category',
+        'Quantity',
+        'Unit',
+        'Expiry Date',
+        'Status',
+        'Storage Location',
+      ]);
+
+      for (final m in filtered) {
+        final status = MaterialService.getMaterialStatus(m);
+        sheet.appendRow([
+          m.name,
+          m.sku,
+          m.category,
+          m.quantity.toString(),
+          m.unit.isEmpty ? '-' : m.unit,
+          _formatDate(m.expiryDate),
+          status,
+          m.location.isEmpty ? '-' : m.location,
+        ]);
+      }
+
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/pharmacy_report_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      final bytes = excel.encode();
+      if (bytes == null) throw Exception('Failed to encode Excel');
+      await File(path).writeAsBytes(bytes);
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported to: $path')),
+      );
+      await Process.start(path, []);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${context.tr.errorGeneratingPdf}: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  String _formatDate(String raw) {
+    try {
+      final date = DateTime.parse(raw).toLocal();
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return raw.isEmpty ? '-' : raw;
+    }
   }
 }

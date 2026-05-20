@@ -1,11 +1,10 @@
 {
-  "latestVersion": "1.0.15",
-  "latestBuildNumber": 15,
+  "latestVersion": "1.0.16",
+  "latestBuildNumber": 16,
   "downloadUrl": "https://github.com/MohamedAlksas/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
-    "Material names now always show in English (not transliterated to Arabic)",
-    "\"Export Material\" renamed to \"Dispatch Material\" for clarity",
-    "Full Arabic translation — stocktake, filters, dialogs, tooltips, PDFs, and settings all now switch language properly"
+    "Excel export for inventory reports",
+    "Custom date range filter for expiry dates in reports"
   ]
 }
