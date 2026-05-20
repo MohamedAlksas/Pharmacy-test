@@ -8,7 +8,7 @@ import 'package:graduation_project/Services/notificationService.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import 'package:graduation_project/Models/app_localizations.dart';
 
@@ -1081,28 +1081,20 @@ class _ReportsPageState extends State<ReportsPage> {
       final excel = Excel.createExcel();
       final sheet = excel['Reports'];
 
-      sheet.appendRow([
-        'Name',
-        'SKU',
-        'Category',
-        'Quantity',
-        'Unit',
-        'Expiry Date',
-        'Status',
-        'Storage Location',
-      ]);
+      final headers = ['Name', 'SKU', 'Category', 'Quantity', 'Unit', 'Expiry Date', 'Status', 'Storage Location'];
+      sheet.appendRow(headers.map((h) => TextCellValue(h) as CellValue).toList());
 
       for (final m in filtered) {
         final status = MaterialService.getMaterialStatus(m);
         sheet.appendRow([
-          m.name,
-          m.sku,
-          m.category,
-          m.quantity.toString(),
-          m.unit.isEmpty ? '-' : m.unit,
-          _formatDate(m.expiryDate),
-          status,
-          m.location.isEmpty ? '-' : m.location,
+          TextCellValue(m.name),
+          TextCellValue(m.sku),
+          TextCellValue(m.category),
+          TextCellValue(m.quantity.toString()),
+          TextCellValue(m.unit.isEmpty ? '-' : m.unit),
+          TextCellValue(_formatDate(m.expiryDate)),
+          TextCellValue(status),
+          TextCellValue(m.location.isEmpty ? '-' : m.location),
         ]);
       }
 
