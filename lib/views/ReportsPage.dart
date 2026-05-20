@@ -448,11 +448,14 @@ class _ReportsPageState extends State<ReportsPage>
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         bottomTitles: AxisTitles(sideTitles: SideTitles(
-          showTitles: true, getTitlesWidget: (v, _) {
+          showTitles: true, getTitlesWidget: (v, meta) {
             const labels = ['Good', 'Expiring', 'Expired', 'Low Stock'];
-            return SideTitleWidget(child: Text(labels[v.toInt()],
-                style: TextStyle(fontSize: 10,
-                    color: isDark ? Colors.white60 : Colors.black54)));
+            return SideTitleWidget(
+              meta: meta,
+              child: Text(labels[v.toInt()],
+                  style: TextStyle(fontSize: 10,
+                      color: isDark ? Colors.white60 : Colors.black54)),
+            );
           },
         )),
       ),
@@ -737,7 +740,7 @@ class _ReportsPageState extends State<ReportsPage>
                 switch (idx) {
                   case 0: _sort<String>(0, (m) => m.name); break;
                   case 1: _sort<String>(1, (m) => m.category); break;
-                  case 2: _sort<int>(2, (m) => m.quantity); break;
+                  case 2: _sort<num>(2, (m) => m.quantity); break;
                   case 3: _sort<String>(3, (m) => m.expiryDate); break;
                   case 4: _sort<String>(4, (m) => MaterialService.getMaterialStatus(m)); break;
                 }
@@ -956,11 +959,14 @@ class _ReportsPageState extends State<ReportsPage>
                     color: isDark ? Colors.white60 : Colors.black54)))),
         bottomTitles: AxisTitles(sideTitles: SideTitles(
           showTitles: true,
-          getTitlesWidget: (v, _) {
+          getTitlesWidget: (v, meta) {
             final labels = ['Now','1m','2m','3m','4m','5m','6m','7m','8m','9m','10m','11m'];
-            return SideTitleWidget(child: Text(labels[v.toInt()],
-                style: TextStyle(fontSize: 9,
-                    color: isDark ? Colors.white60 : Colors.black54)));
+            return SideTitleWidget(
+              meta: meta,
+              child: Text(labels[v.toInt()],
+                  style: TextStyle(fontSize: 9,
+                      color: isDark ? Colors.white60 : Colors.black54)),
+            );
           },
         )),
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -1207,8 +1213,8 @@ class _ReportsPageState extends State<ReportsPage>
       final sheet = excel['Reports'];
 
       final headerStyle = CellStyle(
-        bold: true, backgroundColorHex: '0D6EFD',
-        fontColorHex: 'FFFFFF',
+        bold: true, backgroundColorHex: ExcelColor(int.parse('0D6EFD', radix: 16) | 0xFF000000),
+        fontColorHex: ExcelColor(0xFFFFFFFF),
       );
 
       final headers = ['Name', 'SKU', 'Category', 'Quantity', 'Unit',
@@ -1239,9 +1245,11 @@ class _ReportsPageState extends State<ReportsPage>
           TextCellValue(status),
           TextCellValue(m.location.isEmpty ? '-' : m.location),
         ]);
+        final fg = ExcelColor(int.parse(colorHex, radix: 16) | 0xFF000000);
+        final bg = ExcelColor((int.parse(colorHex, radix: 16) & 0xFFFFFF) | 0x20000000);
         sheet.cell(CellIndex.indexByColumnRow(
             columnIndex: 6, rowIndex: rowIdx)).cellStyle = CellStyle(
-          fontColorHex: colorHex, backgroundColorHex: '${colorHex}20',
+          fontColorHex: fg, backgroundColorHex: bg,
         );
       }
 
@@ -1250,17 +1258,17 @@ class _ReportsPageState extends State<ReportsPage>
       // Summary row
       final totalQty = filtered.fold<int>(0, (s, m) => s + m.quantity);
       sheet.appendRow([
-        const TextCellValue(''), const TextCellValue(''),
-        const TextCellValue(''), const TextCellValue(''),
-        const TextCellValue(''), const TextCellValue(''),
-        const TextCellValue('TOTAL'),
+        TextCellValue(''), TextCellValue(''),
+        TextCellValue(''), TextCellValue(''),
+        TextCellValue(''), TextCellValue(''),
+        TextCellValue('TOTAL'),
         TextCellValue(totalQty.toString()),
       ]);
       final sumRowIdx = sheet.maxRows - 1;
       for (int i = 0; i < 8; i++) {
         sheet.cell(CellIndex.indexByColumnRow(
             columnIndex: i, rowIndex: sumRowIdx)).cellStyle = CellStyle(
-          bold: true, backgroundColorHex: 'F0F0F0',
+          bold: true, backgroundColorHex: ExcelColor(0xFFF0F0F0),
         );
       }
 
