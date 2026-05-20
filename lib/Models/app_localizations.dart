@@ -242,6 +242,12 @@ class AppLocalizations {
   String get expiringSoonItems => isArabic ? 'أصناف تنتهي قريبًا' : 'Expiring Soon Items';
   String get categoryBreakdown => isArabic ? 'توزيع الفئات' : 'Category Breakdown';
   String get stockByCategory => isArabic ? 'المخزون حسب الفئة' : 'Stock by Category';
+  String get overview => isArabic ? 'نظرة عامة' : 'Overview';
+  String get expiryAnalysis => isArabic ? 'تحليل تاريخ الصلاحية' : 'Expiry Analysis';
+  String get statusDistribution => isArabic ? 'توزيع الحالة' : 'Status Distribution';
+  String get categoriesLabel => isArabic ? 'فئات' : 'categories';
+  String get analytics => isArabic ? 'تحليلات' : 'Analytics';
+  String get expiryTimeline => isArabic ? 'الجدول الزمني لانتهاء الصلاحية' : 'Expiry Timeline';
 
   // ── User info / Settings ───────────────────────────────────────────────────
   String get userInfo => isArabic ? 'معلومات المستخدم' : 'User Info';
