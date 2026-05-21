@@ -11,11 +11,7 @@ import 'package:graduation_project/widgets/AddMaterialWizard.dart';
 import 'package:graduation_project/widgets/DispatchMaterialWizard.dart';
 import 'package:graduation_project/widgets/ExpiryEditDialog.dart';
 import 'package:graduation_project/Models/app_localizations.dart';
-import 'package:graduation_project/Models/app_version.dart';
-import 'package:graduation_project/Services/update_service.dart';
 import 'package:graduation_project/widgets/skeletons.dart';
-import 'package:graduation_project/widgets/toast.dart';
-import 'package:graduation_project/widgets/UpdateDialog.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -156,11 +152,6 @@ class _InventoryPageState extends State<InventoryPage> {
           tooltip: context.tr.refreshTooltip,
           onPressed: provider.loadProducts,
           icon: const Icon(Icons.refresh),
-        ),
-        IconButton(
-          tooltip: context.tr.checkForUpdates,
-          onPressed: () => _checkForUpdates(context),
-          icon: const Icon(Icons.system_update_outlined),
         ),
         if (AuthService.isWarehouseManager) ...[
           const SizedBox(width: 8),
@@ -712,22 +703,6 @@ class _InventoryPageState extends State<InventoryPage> {
     };
 
     return matchesSearch && matchesAvailability;
-  }
-
-  Future<void> _checkForUpdates(BuildContext context) async {
-    final available = await UpdateService.isUpdateAvailable();
-    if (!mounted) return;
-
-    if (available) {
-      final remote = await UpdateService.fetchLatestVersion();
-      if (remote == null || !mounted) return;
-      showDialog(
-        context: context,
-        builder: (_) => UpdateDialog(version: remote),
-      );
-    } else {
-      showToast(context, context.tr.upToDate);
-    }
   }
 
   Widget _buildPagination(BuildContext context, int totalPages, int totalItems) {

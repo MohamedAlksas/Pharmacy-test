@@ -10,6 +10,8 @@ import 'package:graduation_project/views/ThresholdSettingsPage.dart';
 import 'package:graduation_project/main.dart';
 import 'package:graduation_project/Services/update_service.dart';
 import 'package:graduation_project/views/StocktakePage.dart';
+import 'package:graduation_project/widgets/toast.dart';
+import 'package:graduation_project/widgets/UpdateDialog.dart';
 
 class MainLayout extends StatefulWidget {
   final int initialIndex;
@@ -90,6 +92,22 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
   }
 
   Future<void> _logout() async => await AuthService.logout();
+
+  Future<void> _checkForUpdates() async {
+    final available = await UpdateService.isUpdateAvailable();
+    if (!mounted) return;
+
+    if (available) {
+      final remote = await UpdateService.fetchLatestVersion();
+      if (remote == null || !mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => UpdateDialog(version: remote),
+      );
+    } else {
+      showToast(context, tr.upToDate);
+    }
+  }
 
   Future<void> _toggleLanguage() async {
     final next = languageNotifier.value == AppLanguage.en ? AppLanguage.ar : AppLanguage.en;
@@ -235,9 +253,16 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
                           final v = snapshot.data ?? '';
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 6),
-                            child: Text(v.isNotEmpty ? 'v$v' : '',
-                                style: TextStyle(fontSize: 11,
-                                    color: isDark ? Colors.white38 : Colors.black38)),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(6),
+                              onTap: _checkForUpdates,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                child: Text(v.isNotEmpty ? 'v$v' : '',
+                                    style: TextStyle(fontSize: 11,
+                                        color: isDark ? Colors.white38 : Colors.black38)),
+                              ),
+                            ),
                           );
                         },
                       ),
