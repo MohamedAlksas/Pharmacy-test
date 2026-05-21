@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.0.23",
-  "latestBuildNumber": 23,
+  "latestVersion": "1.0.24",
+  "latestBuildNumber": 24,
   "downloadUrl": "https://github.com/test-pharm/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
@@ -9,6 +9,8 @@
     "Toast: fixed rendering above dialog overlays",
     "Fix: MaterialService now uses configurable thresholds instead of hardcoded 100/30",
     "Multi-step Add Material wizard (Invoice → Select Type → New/Existing Form)",
-    "Multi-step Dispatch Material wizard (Invoice → Select Product → Dispatch)"
+    "Multi-step Dispatch Material wizard (Invoice → Select Product → Dispatch)",
+    "Pagination for inventory materials list (20 per page)",
+    "Check for Updates button in inventory toolbar"
   ]
 }

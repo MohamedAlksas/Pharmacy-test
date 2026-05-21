@@ -377,4 +377,12 @@ class AppLocalizations {
   String get currentInfo => isArabic ? 'المعلومات الحالية' : 'Current Information';
   String get materialsAdded => isArabic ? 'المواد المضافة في هذه الجلسة' : 'Materials Added in This Session';
   String get finishSaveAll => isArabic ? 'إنهاء وحفظ الكل' : 'Finish & Save All';
+
+  // ── Inventory Pagination ────────────────────────────────────────────────────
+  String get checkForUpdates => isArabic ? 'التحقق من التحديثات' : 'Check for Updates';
+  String get upToDate => isArabic ? 'البرنامج محدث' : 'You\'re up to date';
+  String noOfItems(int count) => isArabic ? '$count عنصر' : '$count items';
+  String pageOf(int current, int total) => isArabic
+      ? 'صفحة $current من $total'
+      : 'Page $current of $total';
 }

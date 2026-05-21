@@ -11,7 +11,11 @@ import 'package:graduation_project/widgets/AddMaterialWizard.dart';
 import 'package:graduation_project/widgets/DispatchMaterialWizard.dart';
 import 'package:graduation_project/widgets/ExpiryEditDialog.dart';
 import 'package:graduation_project/Models/app_localizations.dart';
+import 'package:graduation_project/Models/app_version.dart';
+import 'package:graduation_project/Services/update_service.dart';
 import 'package:graduation_project/widgets/skeletons.dart';
+import 'package:graduation_project/widgets/toast.dart';
+import 'package:graduation_project/widgets/UpdateDialog.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -26,6 +30,8 @@ class _InventoryPageState extends State<InventoryPage> {
   String _availabilityFilter = 'All';
   int? _sortColumnIndex;
   bool _sortAscending = true;
+  int _currentPage = 0;
+  static const int _itemsPerPage = 20;
 
   @override
   void dispose() {
@@ -46,7 +52,13 @@ class _InventoryPageState extends State<InventoryPage> {
         return _sortAscending ? result : -result;
       });
     }
-    final products = filtered;
+
+    final totalItems = filtered.length;
+    final totalPages = totalItems > 0 ? (totalItems / _itemsPerPage).ceil() : 1;
+    if (_currentPage >= totalPages) _currentPage = (totalPages - 1).clamp(0, 999999);
+    final start = _currentPage * _itemsPerPage;
+    final end = (start + _itemsPerPage).clamp(0, totalItems);
+    final products = totalItems > 0 ? filtered.sublist(start, end) : filtered;
 
     return Focus(
       autofocus: true,
@@ -82,7 +94,7 @@ class _InventoryPageState extends State<InventoryPage> {
                   ? const InventorySkeleton()
                   : provider.error != null
                   ? _buildErrorState(context, provider)
-                  : _buildContent(context, provider, products),
+                  : _buildContent(context, provider, products, totalPages: totalPages, totalItems: totalItems),
             ),
           ],
         ),
@@ -97,7 +109,7 @@ class _InventoryPageState extends State<InventoryPage> {
           child: TextField(
             controller: _searchCtrl,
             focusNode: _searchFocus,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _currentPage = 0),
             decoration: InputDecoration(
               hintText: '${context.tr.searchByNameOrSku}  (Ctrl+F)',
               prefixIcon: const Icon(Icons.search),
@@ -128,11 +140,14 @@ class _InventoryPageState extends State<InventoryPage> {
                   child: Text(context.tr.unavailable),
                 ),
               ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _availabilityFilter = value);
-                }
-              },
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _availabilityFilter = value;
+                  _currentPage = 0;
+                });
+              }
+            },
             ),
           ),
         ),
@@ -141,6 +156,11 @@ class _InventoryPageState extends State<InventoryPage> {
           tooltip: context.tr.refreshTooltip,
           onPressed: provider.loadProducts,
           icon: const Icon(Icons.refresh),
+        ),
+        IconButton(
+          tooltip: context.tr.checkForUpdates,
+          onPressed: () => _checkForUpdates(context),
+          icon: const Icon(Icons.system_update_outlined),
         ),
         if (AuthService.isWarehouseManager) ...[
           const SizedBox(width: 8),
@@ -185,8 +205,10 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget _buildContent(
     BuildContext context,
     ProductProvider provider,
-    List<MaterialModel> products,
-  ) {
+    List<MaterialModel> products, {
+    required int totalPages,
+    required int totalItems,
+  }) {
     if (products.isEmpty) {
       return Container(
         width: double.infinity,
@@ -218,15 +240,18 @@ class _InventoryPageState extends State<InventoryPage> {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          child: DataTable(
+    return Column(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                child: DataTable(
             headingRowHeight: 54,
             dataRowMinHeight: 62,
             dataRowMaxHeight: 62,
@@ -283,9 +308,13 @@ class _InventoryPageState extends State<InventoryPage> {
                 ],
               );
             }).toList(),
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+        _buildPagination(context, totalPages, totalItems),
+      ],
     );
   }
 
@@ -683,6 +712,65 @@ class _InventoryPageState extends State<InventoryPage> {
     };
 
     return matchesSearch && matchesAvailability;
+  }
+
+  Future<void> _checkForUpdates(BuildContext context) async {
+    final available = await UpdateService.isUpdateAvailable();
+    if (!mounted) return;
+
+    if (available) {
+      final remote = await UpdateService.fetchLatestVersion();
+      if (remote == null || !mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => UpdateDialog(version: remote),
+      );
+    } else {
+      showToast(context, context.tr.upToDate);
+    }
+  }
+
+  Widget _buildPagination(BuildContext context, int totalPages, int totalItems) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white70 : Colors.black54;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+        border: Border(
+          top: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Text(
+            context.tr.noOfItems(totalItems),
+            style: TextStyle(color: textColor, fontSize: 13),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.chevron_left, size: 20),
+            onPressed: _currentPage > 0
+                ? () => setState(() => _currentPage--)
+                : null,
+            visualDensity: VisualDensity.compact,
+          ),
+          Text(
+            context.tr.pageOf(_currentPage + 1, totalPages),
+            style: TextStyle(color: textColor, fontSize: 13),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right, size: 20),
+            onPressed: _currentPage < totalPages - 1
+                ? () => setState(() => _currentPage++)
+                : null,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDate(String raw) {
