@@ -105,7 +105,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
         builder: (_) => UpdateDialog(version: remote),
       );
     } else {
-      showToast(context, tr.upToDate);
+      showToast(context, context.tr.upToDate);
     }
   }
 
