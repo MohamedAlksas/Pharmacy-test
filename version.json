@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.0.24",
-  "latestBuildNumber": 24,
+  "latestVersion": "1.0.25",
+  "latestBuildNumber": 25,
   "downloadUrl": "https://github.com/test-pharm/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
@@ -11,6 +11,7 @@
     "Multi-step Add Material wizard (Invoice → Select Type → New/Existing Form)",
     "Multi-step Dispatch Material wizard (Invoice → Select Product → Dispatch)",
     "Pagination for inventory materials list (20 per page)",
-    "Check for Updates button in inventory toolbar"
+    "Check for Updates button in inventory toolbar",
+    "fix: move check-for-updates to sidebar version label"
   ]
 }
