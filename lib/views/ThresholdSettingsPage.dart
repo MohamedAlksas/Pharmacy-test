@@ -37,7 +37,7 @@ class _ThresholdSettingsPageState extends State<ThresholdSettingsPage> {
     await ThresholdService.setExpiringSoonDays(30);
     _lowStockCtrl.text = '100';
     _expiryCtrl.text = '30';
-    ProductProvider.of(context, listen: false).loadProducts();
+    await ProductProvider.of(context, listen: false).loadProducts();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr.settingsSaved)),
@@ -52,7 +52,7 @@ class _ThresholdSettingsPageState extends State<ThresholdSettingsPage> {
     final expiry = int.parse(_expiryCtrl.text);
     await ThresholdService.setLowStockThreshold(low);
     await ThresholdService.setExpiringSoonDays(expiry);
-    ProductProvider.of(context, listen: false).loadProducts();
+    await ProductProvider.of(context, listen: false).loadProducts();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr.settingsSaved)),
