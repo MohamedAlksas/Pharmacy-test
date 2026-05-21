@@ -124,7 +124,7 @@ class _ThresholdSettingsPageState extends State<ThresholdSettingsPage> {
                             if (v == null || v.isEmpty) return tr.required;
                             final n = int.tryParse(v);
                             if (n == null || n < 1 || n > 365) {
-                              return isArabic
+                              return tr.isArabic
                                   ? 'أدخل رقماً بين 1 و 365'
                                   : 'Enter a number between 1 and 365';
                             }
@@ -157,7 +157,7 @@ class _ThresholdSettingsPageState extends State<ThresholdSettingsPage> {
                           OutlinedButton.icon(
                             onPressed: _resetDefaults,
                             icon: const Icon(Icons.restore),
-                            label: Text(isArabic ? 'إعادة الضبط' : 'Reset'),
+                            label: Text(tr.isArabic ? 'إعادة الضبط' : 'Reset'),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                             ),
