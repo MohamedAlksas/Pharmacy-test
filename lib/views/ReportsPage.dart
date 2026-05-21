@@ -16,6 +16,11 @@ import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/Models/materialModel.dart';
 import 'package:graduation_project/widgets/skeletons.dart';
 
+const _pieColors = [
+  Colors.blue, Colors.teal, Colors.orange, Colors.purple,
+  Colors.red, Colors.green, Colors.indigo, Colors.amber,
+];
+
 class ReportsPage extends StatefulWidget {
   final VoidCallback? onGoToOrders;
   const ReportsPage({super.key, this.onGoToOrders});
@@ -126,12 +131,6 @@ class _ReportsPageState extends State<ReportsPage>
 
   // ─── Chart data ──────────────────────────────────────────────────────────────
 
-  static const _pieColors = [
-    Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800),
-    Color(0xFF9C27B0), Color(0xFFF44336), Color(0xFF00BCD4),
-    Color(0xFFFFEB3B), Color(0xFF795548),
-  ];
-
   List<PieChartSectionData> _categoryPieData(List<MaterialModel> list) {
     if (list.isEmpty) return [];
     final Map<String, int> counts = {};
@@ -139,10 +138,7 @@ class _ReportsPageState extends State<ReportsPage>
       final cat = m.category.isEmpty ? 'Uncategorized' : m.category;
       counts[cat] = (counts[cat] ?? 0) + 1;
     }
-    final colors = [
-      Colors.blue, Colors.teal, Colors.orange, Colors.purple,
-      Colors.red, Colors.green, Colors.indigo, Colors.amber,
-    ];
+    final colors = _pieColors;
     return counts.entries.toList().asMap().entries.map((e) {
       final i = e.key;
       final entry = e.value;
@@ -428,24 +424,30 @@ class _ReportsPageState extends State<ReportsPage>
   }
 
   Widget _buildPieChart(bool isDark, List<MaterialModel> all) {
-    final data = _categoryPieData(all);
-    if (data.isEmpty) return Center(child: Text(context.tr.noData,
+    if (all.isEmpty) return Center(child: Text(context.tr.noData,
         style: TextStyle(color: isDark ? Colors.white60 : Colors.black38)));
+    final Map<String, int> counts = {};
+    for (final m in all) {
+      final cat = m.category.isEmpty ? 'Uncategorized' : m.category;
+      counts[cat] = (counts[cat] ?? 0) + 1;
+    }
+    final entries = counts.entries.toList();
     return Stack(
       alignment: Alignment.center,
       children: [
         PieChart(PieChartData(
-          sections: List.generate(data.length, (i) {
-            final pct = data[i].value / all.length * 100;
+          sections: List.generate(entries.length, (i) {
+            final entry = entries[i];
+            final pct = entry.value / all.length * 100;
             final isTouched = i == _touchedPieIndex;
             return PieChartSectionData(
-              value: data[i].value.toDouble(),
+              value: entry.value.toDouble(),
               color: _pieColors[i % _pieColors.length],
               radius: isTouched ? 58 : 48,
               title: '${pct.toStringAsFixed(0)}%',
               titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-              badgeWidget: isTouched ? Text(data[i].key,
-                  style: const TextStyle(fontSize: 9, color: Colors.black54)) : null,
+              badgeWidget: isTouched ? Text(entry.key,
+                  style: TextStyle(fontSize: 9, color: isDark ? Colors.white70 : Colors.black54)) : null,
               badgePositionPercentageOffset: 1.3,
             );
           }),
