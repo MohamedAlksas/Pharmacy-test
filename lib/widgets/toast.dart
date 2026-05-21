@@ -46,7 +46,7 @@ class _ToastWidgetState extends State<_ToastWidget>
     _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
     _slide = Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-    _fade = Tween<double>(begin: 0, to: 1).animate(_ctrl);
+    _fade = Tween<double>(begin: 0, end: 1).animate(_ctrl);
     _ctrl.forward();
   }
 
@@ -77,7 +77,7 @@ class _ToastWidgetState extends State<_ToastWidget>
                 children: [
                   Icon(Icons.check_circle, color: Colors.green[400], size: 20),
                   const SizedBox(width: 10),
-                  Flexible(child: Text(message, style: TextStyle(color: textColor, fontSize: 14))),
+                  Flexible(child: Text(widget.message, style: TextStyle(color: textColor, fontSize: 14))),
                 ],
               ),
             ),
