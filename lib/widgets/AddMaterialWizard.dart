@@ -146,26 +146,31 @@ class _AddMaterialWizardState extends State<AddMaterialWizard> {
       _submitted = true;
     });
 
+    bool ok;
     if (_selectionMode == 0) {
-      _addExistingToSession();
+      ok = _addExistingToSession();
     } else {
-      _addNewToSession();
+      ok = _addNewToSession();
+    }
+
+    if (!ok) {
+      setState(() => _submitted = false);
     }
   }
 
-  void _addExistingToSession() {
+  bool _addExistingToSession() {
     final tr = context.tr;
     final selected = _selectedExistingProduct;
 
     if (selected == null) {
       _toast(tr.productNotFound);
-      return;
+      return false;
     }
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return false;
 
     final addedQty = int.tryParse(_existingQuantityController.text.trim()) ?? 0;
-    if (addedQty <= 0) return;
+    if (addedQty <= 0) return false;
 
     final product = widget.provider.findById(selected.id) ?? selected;
     final body = product.toApiBody();
@@ -190,17 +195,18 @@ class _AddMaterialWizardState extends State<AddMaterialWizard> {
       _clearExistingForm();
       _goToStep(1);
     });
+    return true;
   }
 
-  void _addNewToSession() {
+  bool _addNewToSession() {
     final tr = context.tr;
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return false;
 
     final name = _newNameController.text.trim();
     final sku = _newSkuController.text.trim();
     final qty = int.tryParse(_newQuantityController.text.trim()) ?? 0;
-    if (qty <= 0 || name.isEmpty || sku.isEmpty) return;
-    if (_newExpiryDate == null) return;
+    if (qty <= 0 || name.isEmpty || sku.isEmpty) return false;
+    if (_newExpiryDate == null) return false;
 
     final body = <String, dynamic>{
       'materialName': name,
@@ -230,6 +236,7 @@ class _AddMaterialWizardState extends State<AddMaterialWizard> {
       _clearNewForm();
       _goToStep(1);
     });
+    return true;
   }
 
   void _removeSessionMaterial(int index) {
