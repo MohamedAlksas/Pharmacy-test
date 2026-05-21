@@ -192,6 +192,7 @@ class AppLocalizations {
   String get productAdded => isArabic ? 'تمت إضافة المنتج بنجاح' : 'Product added successfully';
 
   // ── Export dialog ──────────────────────────────────────────────────────────
+  String get invoiceNumber => isArabic ? 'رقم الفاتورة' : 'Invoice Number';
   String get exportProductTitle => isArabic ? 'صرف منتج' : 'Dispatch Product';
   String get exportProductSubtitle => isArabic
       ? 'سجّل مغادرة المنتج من مخزون المستودع.'
@@ -366,4 +367,14 @@ class AppLocalizations {
   String get editApproved => isArabic ? 'تمت الموافقة على التعديل وتطبيقه.' : 'Edit approved and applied.';
   String get editRejected => isArabic ? 'تم رفض التعديل.' : 'Edit rejected.';
   String get rejectReasonHint => isArabic ? 'سبب الرفض' : 'Reason for rejection';
+
+  // ── Add Material Wizard ─────────────────────────────────────────────────────
+  String get selectMaterial => isArabic ? 'اختر المادة' : 'Select Material';
+  String get existingStock => isArabic ? 'مخزون موجود' : 'Add to Existing Stock';
+  String get newMaterial => isArabic ? 'مادة جديدة' : 'Add New Material';
+  String get invoiceInfo => isArabic ? 'معلومات الفاتورة' : 'Invoice Information';
+  String get quantityToAdd => isArabic ? 'الكمية المضافة' : 'Quantity to Add';
+  String get currentInfo => isArabic ? 'المعلومات الحالية' : 'Current Information';
+  String get materialsAdded => isArabic ? 'المواد المضافة في هذه الجلسة' : 'Materials Added in This Session';
+  String get finishSaveAll => isArabic ? 'إنهاء وحفظ الكل' : 'Finish & Save All';
 }

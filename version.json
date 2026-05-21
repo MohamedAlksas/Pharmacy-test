@@ -1,12 +1,14 @@
 {
-  "latestVersion": "1.0.22",
-  "latestBuildNumber": 22,
+  "latestVersion": "1.0.23",
+  "latestBuildNumber": 23,
   "downloadUrl": "https://github.com/test-pharm/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
     "Toast notification system (top-right overlay, slide+fade animation)",
     "Sidebar: badge counts on nav items, responsive auto-collapse below 900px",
     "Toast: fixed rendering above dialog overlays",
-    "Fix: MaterialService now uses configurable thresholds instead of hardcoded 100/30"
+    "Fix: MaterialService now uses configurable thresholds instead of hardcoded 100/30",
+    "Multi-step Add Material wizard (Invoice → Select Type → New/Existing Form)",
+    "Multi-step Dispatch Material wizard (Invoice → Select Product → Dispatch)"
   ]
 }

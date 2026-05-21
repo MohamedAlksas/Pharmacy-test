@@ -7,9 +7,9 @@ import 'package:graduation_project/Models/UserRoleModel.dart';
 import 'package:graduation_project/Models/materialModel.dart';
 import 'package:graduation_project/Services/notificationService.dart';
 import 'package:graduation_project/Services/orderService.dart';
-import 'package:graduation_project/widgets/AddMaterial.dart';
+import 'package:graduation_project/widgets/AddMaterialWizard.dart';
+import 'package:graduation_project/widgets/DispatchMaterialWizard.dart';
 import 'package:graduation_project/widgets/ExpiryEditDialog.dart';
-import 'package:graduation_project/widgets/ExportMaterial.dart';
 import 'package:graduation_project/Models/app_localizations.dart';
 import 'package:graduation_project/widgets/skeletons.dart';
 
@@ -369,64 +369,9 @@ class _InventoryPageState extends State<InventoryPage> {
       return;
     }
 
-    final payload = await showDialog<Map<String, dynamic>>(
+    await showDialog<void>(
       context: context,
-      builder: (_) => AddMaterialDialog(provider: provider),
-    );
-
-    if (payload == null) {
-      return;
-    }
-
-    final isExistingStockAdd = payload['_mode'] == 'existing';
-    final String? error;
-    if (isExistingStockAdd) {
-      error = await provider.updateProduct(
-        payload['_productId'].toString(),
-        Map<String, dynamic>.from(payload['_body'] as Map),
-      );
-    } else {
-      error = await provider.addProduct(payload);
-    }
-
-    if (!context.mounted) {
-      return;
-    }
-
-    if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    OrderService.addOrder(
-      OrderModel(
-        productId: isExistingStockAdd ? payload['_productId'].toString() : null,
-        productName: payload['materialName']?.toString() ?? '',
-        productSku: payload['material_SKU']?.toString() ?? '',
-        quantity: payload['quantity'] is int
-            ? payload['quantity'] as int
-            : int.tryParse(payload['quantity']?.toString() ?? '') ?? 0,
-        unit: payload['unit']?.toString() ?? '',
-        logNumber: payload['logNumber']?.toString() ?? '',
-        categoryId: payload['categoryId'] is int
-            ? payload['categoryId'] as int
-            : int.tryParse(payload['categoryId']?.toString() ?? '') ?? 0,
-        type: OrderType.add,
-        status: OrderStatus.completed,
-        createdBy: AuthService.currentUser?.fullName ?? context.tr.unknownUser,
-      ),
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isExistingStockAdd
-              ? context.tr.stockUpdated
-              : context.tr.productAdded,
-        ),
-      ),
+      builder: (_) => AddMaterialWizard(provider: provider),
     );
   }
 
@@ -434,50 +379,9 @@ class _InventoryPageState extends State<InventoryPage> {
     BuildContext context,
     ProductProvider provider,
   ) async {
-    final result = await showDialog<ExportMaterialResult>(
+    await showDialog<void>(
       context: context,
-      builder: (_) => ExportMaterialDialog(provider: provider),
-    );
-    if (result == null) return;
-
-    final error = await provider.updateProduct(result.product.id, result.body);
-    if (!context.mounted) return;
-
-    if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    OrderService.addOrder(
-      OrderModel(
-        productId: result.product.id,
-        productName: result.product.name,
-        productSku: result.product.sku,
-        quantity: result.quantity,
-        unit: result.product.unit,
-        logNumber: result.product.lot,
-        categoryId: result.product.categoryId,
-        type: OrderType.export,
-        status: OrderStatus.completed,
-        createdBy: AuthService.currentUser?.fullName ?? context.tr.unknownUser,
-      ),
-    );
-
-    // Determine the remaining quantity from the body that was sent to the API.
-    final remainingQty = result.body['quantity'] as int? ?? -1;
-    final outOfStock = remainingQty == 0;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          outOfStock
-              ? context.tr.outOfStockWarning(result.quantity, result.product.name)
-              : context.tr.unitsDispatched(result.quantity, result.product.name),
-        ),
-        backgroundColor: outOfStock ? Colors.orange : null,
-      ),
+      builder: (_) => DispatchMaterialWizard(provider: provider),
     );
   }
 
