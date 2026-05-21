@@ -192,10 +192,28 @@ class _InventoryPageState extends State<InventoryPage> {
         width: double.infinity,
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
+        padding: const EdgeInsets.all(40),
         child: Center(
-          child: Text(context.tr.noProductsFiltered),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.inventory_2_outlined, size: 64,
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white24 : Colors.black12),
+              const SizedBox(height: 16),
+              Text(context.tr.noProductsFiltered,
+                  style: TextStyle(fontSize: 16,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : Colors.black45)),
+              const SizedBox(height: 16),
+              if (AuthService.isWarehouseManager)
+                ElevatedButton.icon(
+                  onPressed: () => _openProductDialog(context, ProductProvider.of(context)),
+                  icon: const Icon(Icons.add),
+                  label: Text(context.tr.addProduct),
+                ),
+            ],
+          ),
         ),
       );
     }
@@ -203,7 +221,7 @@ class _InventoryPageState extends State<InventoryPage> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -255,6 +273,15 @@ class _InventoryPageState extends State<InventoryPage> {
             ],
             rows: products.map((product) {
               return DataRow(
+                onSelectChanged: (_) => _showDetails(context, product),
+                color: WidgetStateProperty.resolveWith<Color?>((states) {
+                  if (states.contains(WidgetState.hovered)) {
+                    return Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.06)
+                        : Colors.grey.withOpacity(0.08);
+                  }
+                  return null;
+                }),
                 cells: [
                   DataCell(_productSummary(context, product)),
                   DataCell(Text(_databaseQuantityText(product))),
@@ -584,16 +611,17 @@ class _InventoryPageState extends State<InventoryPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
     final mutedColor = isDark ? Colors.white60 : Colors.black54;
+    final isArabic = context.tr.isArabic;
 
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1E1E2E) : null,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         titlePadding: EdgeInsets.zero,
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
-          width: 420,
+          width: 460,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -602,7 +630,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF2A2A3E) : const Color(0xFFF5F7FA),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 ),
                 child: Row(
                   children: [
@@ -634,27 +662,72 @@ class _InventoryPageState extends State<InventoryPage> {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    _detailRow(Icons.category_outlined, context.tr.category, product.category.isNotEmpty ? product.category : product.categoryId.toString()),
-                    const Divider(height: 20),
-                    _detailRow(Icons.inventory_outlined, context.tr.quantity, '${product.quantity} ${product.unit}'),
-                    const Divider(height: 20),
-                    _detailRow(Icons.qr_code_outlined, context.tr.logNumber, product.lot.isEmpty ? '-' : product.lot),
-                    const Divider(height: 20),
-                    _detailRow(Icons.location_on_outlined, context.tr.storageLocation, product.location.isEmpty ? '-' : product.location),
-                    const Divider(height: 20),
-                    _detailRow(Icons.calendar_today_outlined, context.tr.expiryDate, _formatDate(product.expiryDate)),
-                    const Divider(height: 20),
-                    _detailRow(
-                      Icons.check_circle_outlined,
-                      context.tr.status,
-                      product.isAvailable ? context.tr.available : context.tr.unavailable,
-                      valueColor: product.isAvailable ? Colors.green : Colors.orange,
-                    ),
-                  ],
+              SizedBox(
+                height: 280,
+                child: DefaultTabController(
+                  length: 3,
+                  child: Column(
+                    children: [
+                      TabBar(
+                        labelColor: Colors.blue,
+                        unselectedLabelColor: mutedColor,
+                        indicatorColor: Colors.blue,
+                        tabs: [
+                          Tab(text: isArabic ? 'تفاصيل' : 'Details'),
+                          Tab(text: isArabic ? 'صلاحية' : 'Expiry'),
+                          Tab(text: isArabic ? 'تاريخ' : 'History'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                children: [
+                                  _detailRow(Icons.category_outlined, context.tr.category, product.category.isNotEmpty ? product.category : product.categoryId.toString()),
+                                  const Divider(height: 20),
+                                  _detailRow(Icons.inventory_outlined, context.tr.quantity, '${product.quantity} ${product.unit}'),
+                                  const Divider(height: 20),
+                                  _detailRow(Icons.qr_code_outlined, context.tr.logNumber, product.lot.isEmpty ? '-' : product.lot),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                children: [
+                                  _detailRow(Icons.location_on_outlined, context.tr.storageLocation, product.location.isEmpty ? '-' : product.location),
+                                  const Divider(height: 20),
+                                  _detailRow(Icons.calendar_today_outlined, context.tr.expiryDate, _formatDate(product.expiryDate)),
+                                  const Divider(height: 20),
+                                  _detailRow(
+                                    Icons.check_circle_outlined, context.tr.status,
+                                    product.isAvailable ? context.tr.available : context.tr.unavailable,
+                                    valueColor: product.isAvailable ? Colors.green : Colors.orange,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.history, size: 40, color: mutedColor),
+                                    const SizedBox(height: 8),
+                                    Text(isArabic ? 'سجل الطلبات قيد التطوير' : 'Order history coming soon',
+                                        style: TextStyle(color: mutedColor)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               Padding(

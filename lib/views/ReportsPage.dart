@@ -38,6 +38,8 @@ class _ReportsPageState extends State<ReportsPage>
   int _sortCol = -1;
   bool _sortAsc = true;
 
+  int _touchedPieIndex = -1;
+
   // Pagination
   int _pageSize = 25;
   int _pageIndex = 0;
@@ -124,6 +126,12 @@ class _ReportsPageState extends State<ReportsPage>
 
   // ─── Chart data ──────────────────────────────────────────────────────────────
 
+  static const _pieColors = [
+    Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800),
+    Color(0xFF9C27B0), Color(0xFFF44336), Color(0xFF00BCD4),
+    Color(0xFFFFEB3B), Color(0xFF795548),
+  ];
+
   List<PieChartSectionData> _categoryPieData(List<MaterialModel> list) {
     if (list.isEmpty) return [];
     final Map<String, int> counts = {};
@@ -184,7 +192,7 @@ class _ReportsPageState extends State<ReportsPage>
       months[idx] = (months[idx] ?? 0) + 1;
     }
     return months.entries.map((e) => BarChartGroupData(
-      x: e.key, barRods: [_barRod(e.value, const Color(0xFF0D6EFD))],
+      x: e.key, barRods: [_barRod(e.value, _pieColors[e.key % _pieColors.length])],
     )).toList();
   }
 
@@ -288,7 +296,7 @@ class _ReportsPageState extends State<ReportsPage>
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A2332) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: TabBar(
         controller: _tabCtrl,
@@ -375,7 +383,7 @@ class _ReportsPageState extends State<ReportsPage>
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: accent.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: accent, size: 26),
             ),
@@ -427,8 +435,33 @@ class _ReportsPageState extends State<ReportsPage>
       alignment: Alignment.center,
       children: [
         PieChart(PieChartData(
-          sections: data, centerSpaceRadius: 36,
+          sections: List.generate(data.length, (i) {
+            final pct = data[i].value / all.length * 100;
+            final isTouched = i == _touchedPieIndex;
+            return PieChartSectionData(
+              value: data[i].value.toDouble(),
+              color: _pieColors[i % _pieColors.length],
+              radius: isTouched ? 58 : 48,
+              title: '${pct.toStringAsFixed(0)}%',
+              titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+              badgeWidget: isTouched ? Text(data[i].key,
+                  style: const TextStyle(fontSize: 9, color: Colors.black54)) : null,
+              badgePositionPercentageOffset: 1.3,
+            );
+          }),
+          centerSpaceRadius: 36,
           sectionsSpace: 2,
+          pieTouchData: PieTouchData(
+            touchCallback: (event, response) {
+              if (!event.isInterestedForInteractions || response == null ||
+                  response.touchedSection == null) {
+                if (_touchedPieIndex != -1) setState(() => _touchedPieIndex = -1);
+                return;
+              }
+              final idx = response.touchedSection!.touchedSectionIndex;
+              if (idx != _touchedPieIndex) setState(() => _touchedPieIndex = idx);
+            },
+          ),
         )),
         Text('${all.length}', style: TextStyle(fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -576,12 +609,12 @@ class _ReportsPageState extends State<ReportsPage>
           flex: 3,
           child: Container(
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1A2332) : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (_) { setState(() { _pageIndex = 0; }); },
+            color: isDark ? const Color(0xFF1A2332) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: TextField(
+            controller: _searchCtrl,
+            onChanged: (_) { setState(() { _pageIndex = 0; }); },
               style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 14),
               decoration: InputDecoration(
                 hintText: context.tr.searchByNameOrSku,
@@ -614,7 +647,7 @@ class _ReportsPageState extends State<ReportsPage>
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A2332) : Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isDark ? const Color(0xFF2A3F5F) : Colors.grey.shade300),
       ),
       child: DropdownButtonHideUnderline(
@@ -661,12 +694,12 @@ class _ReportsPageState extends State<ReportsPage>
     final hintColor = isDark ? Colors.white38 : Colors.black38;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1A2332) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: isDark ? const Color(0xFF2A3F5F) : Colors.grey.shade300),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [

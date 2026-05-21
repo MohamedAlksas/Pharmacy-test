@@ -170,7 +170,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,7 +211,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
   Widget _buildProgressBar(bool isDark) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: LinearProgressIndicator(
         value: _progress.progress,
         minHeight: 8,
