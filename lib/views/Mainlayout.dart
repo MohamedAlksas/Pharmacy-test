@@ -187,7 +187,6 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
                         children: menuItems.map((item) {
                           return _sidebarItem(
                             item.icon, item.label, item.index, isDark,
-                            provider, context.tr,
                           );
                         }).toList(),
                       ),
@@ -253,39 +252,16 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     );
   }
 
-  Widget _sidebarItem(IconData icon, String label, int index, bool isDark, ProductProvider provider, AppLocalizations tr) {
+  Widget _sidebarItem(IconData icon, String label, int index, bool isDark) {
     final selected = index == _selectedIndex;
     final selectedColor = isDark ? Colors.lightBlueAccent : Colors.blueAccent;
     final defaultColor = isDark ? Colors.white70 : Colors.black54;
-
-    int badge = 0;
-    if (index == 1) badge = provider.lowStockCount; // Inventory
-    if (index == 3) badge = provider.getCriticalAlertsCount(); // Reports
-    if (index == 4) badge = provider.lowStockCount; // Orders
 
     return Tooltip(
       message: _sidebarCollapsed ? label : '',
       child: ListTile(
         dense: true,
-        leading: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Icon(icon, color: selected ? selectedColor : defaultColor),
-            if (badge > 0)
-              Positioned(
-                right: -6,
-                top: -4,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                  child: Text(badge.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center),
-                ),
-              ),
-          ],
-        ),
+            leading: Icon(icon, color: selected ? selectedColor : defaultColor),
         title: _sidebarCollapsed ? null : Text(label,
             style: TextStyle(color: selected ? selectedColor : (isDark ? Colors.white : Colors.black87),
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal)),

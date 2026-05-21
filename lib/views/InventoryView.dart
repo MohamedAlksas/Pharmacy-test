@@ -273,15 +273,6 @@ class _InventoryPageState extends State<InventoryPage> {
             ],
             rows: products.map((product) {
               return DataRow(
-                onSelectChanged: (_) => _showDetails(context, product),
-                color: WidgetStateProperty.resolveWith<Color?>((states) {
-                  if (states.contains(WidgetState.hovered)) {
-                    return Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withOpacity(0.06)
-                        : Colors.grey.withOpacity(0.08);
-                  }
-                  return null;
-                }),
                 cells: [
                   DataCell(_productSummary(context, product)),
                   DataCell(Text(_databaseQuantityText(product))),
