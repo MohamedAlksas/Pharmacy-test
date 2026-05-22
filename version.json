@@ -1,21 +1,10 @@
 {
-  "latestVersion": "1.0.29",
-  "latestBuildNumber": 29,
+  "latestVersion": "1.0.30",
+  "latestBuildNumber": 30,
   "downloadUrl": "https://github.com/test-pharm/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
-    "Toast notification system (top-right overlay, slide+fade animation)",
-    "Sidebar: badge counts on nav items, responsive auto-collapse below 900px",
-    "Toast: fixed rendering above dialog overlays",
-    "Fix: MaterialService now uses configurable thresholds instead of hardcoded 100/30",
-    "Multi-step Add Material wizard (Invoice → Select Type → New/Existing Form)",
-    "Multi-step Dispatch Material wizard (Invoice → Select Product → Dispatch)",
-    "Pagination for inventory materials list (20 per page)",
-    "Check for Updates button in inventory toolbar",
-    "fix: move check-for-updates to sidebar version label",
-    "Multi-item dispatch session (accumulate then 'Finish & Dispatch All')",
-    "Loading overlay animation during Add/Dispatch save + Check for Updates",
-    "Fix: loading dialog stuck + save flash (keep overlay until pop)",
-    "Revert: remove loading overlay animations"
+    "Update dialog now scrollable + responsive to window size",
+    "Fix: long release notes no longer cut off the Update Now button"
   ]
 }
