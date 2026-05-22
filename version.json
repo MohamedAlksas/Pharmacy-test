@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.0.26",
-  "latestBuildNumber": 26,
+  "latestVersion": "1.0.27",
+  "latestBuildNumber": 27,
   "downloadUrl": "https://github.com/test-pharm/Pharmacy-test/releases/latest/download/pharmacy-wms-windows.zip",
   "mandatory": false,
   "releaseNotes": [
@@ -13,6 +13,7 @@
     "Pagination for inventory materials list (20 per page)",
     "Check for Updates button in inventory toolbar",
     "fix: move check-for-updates to sidebar version label",
-    "Multi-item dispatch session (accumulate then 'Finish & Dispatch All')"
+    "Multi-item dispatch session (accumulate then 'Finish & Dispatch All')",
+    "Loading overlay animation during Add/Dispatch save + Check for Updates"
   ]
 }
