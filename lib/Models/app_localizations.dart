@@ -385,4 +385,12 @@ class AppLocalizations {
   String pageOf(int current, int total) => isArabic
       ? 'صفحة $current من $total'
       : 'Page $current of $total';
+
+  // ── Dispatch Wizard ────────────────────────────────────────────────────────
+  String get addToDispatch => isArabic ? 'إضافة للصرف' : 'Add to Dispatch';
+  String get finishDispatchAll => isArabic ? 'إنهاء وصرف الكل' : 'Finish & Dispatch All';
+  String get itemsToDispatch => isArabic ? 'المواد المراد صرفها' : 'Items to Dispatch';
+  String unitsDispatchedSummary(int totalQuantity, int itemCount) => isArabic
+      ? 'تم صرف $totalQuantity وحدة من $itemCount مادة'
+      : 'Dispatched $totalQuantity units across $itemCount items';
 }

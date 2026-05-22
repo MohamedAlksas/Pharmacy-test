@@ -16,46 +16,65 @@ class DispatchMaterialWizard extends StatefulWidget {
   State<DispatchMaterialWizard> createState() => _DispatchMaterialWizardState();
 }
 
+class _DispatchSessionItem {
+  final String productId;
+  final String name;
+  final String sku;
+  final int qty;
+  final int stockBefore;
+  final String unit;
+  final String logNumber;
+  final int categoryId;
+  final String category;
+  final Map<String, dynamic> body;
+
+  const _DispatchSessionItem({
+    required this.productId,
+    required this.name,
+    required this.sku,
+    required this.qty,
+    required this.stockBefore,
+    required this.unit,
+    required this.logNumber,
+    required this.categoryId,
+    required this.category,
+    required this.body,
+  });
+}
+
 class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
   int _currentStep = 0;
   final _formKey = GlobalKey<FormState>();
 
   final _invoiceController = TextEditingController();
-
   final _searchController = TextEditingController();
-  final _nameController = TextEditingController();
-  final _skuController = TextEditingController();
   final _qtyController = TextEditingController();
-  final _unitController = TextEditingController();
-  final _lotController = TextEditingController();
-  final _categoryIdController = TextEditingController();
 
   MaterialModel? _selectedProduct;
   String _query = '';
   String? _inlineError;
+  bool _saving = false;
+
+  final List<_DispatchSessionItem> _sessionItems = [];
 
   @override
   void dispose() {
     _invoiceController.dispose();
     _searchController.dispose();
-    _nameController.dispose();
-    _skuController.dispose();
     _qtyController.dispose();
-    _unitController.dispose();
-    _lotController.dispose();
-    _categoryIdController.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  void _addToSession() {
     final tr = context.tr;
-    setState(() => _inlineError = null);
+    setState(() {
+      _inlineError = null;
+    });
     if (!_formKey.currentState!.validate()) return;
 
     final selected = _selectedProduct;
     final product = selected == null
-        ? widget.provider.findByNameOrSku(_skuController.text.trim()) ??
-              widget.provider.findByNameOrSku(_nameController.text.trim())
+        ? null
         : widget.provider.findById(selected.id) ?? selected;
     if (product == null) {
       setState(() => _inlineError = tr.productNotFound);
@@ -92,42 +111,82 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
         'categoryName': product.category,
     };
 
-    final error = await widget.provider.updateProduct(product.id, body);
-    if (!context.mounted) return;
-
-    if (error != null) {
-      showToast(context, error, backgroundColor: Colors.red);
-      return;
-    }
-
-    OrderService.addOrder(
-      OrderModel(
+    setState(() {
+      _sessionItems.add(_DispatchSessionItem(
         productId: product.id,
-        productName: product.name,
-        productSku: product.sku,
-        quantity: qty,
+        name: product.name,
+        sku: product.sku,
+        qty: qty,
+        stockBefore: product.quantity,
         unit: product.unit,
         logNumber: product.lot,
         categoryId: product.categoryId,
-        type: OrderType.export,
-        status: OrderStatus.completed,
-        createdBy: AuthService.currentUser?.fullName ?? tr.unknownUser,
-        notes: _invoiceController.text.trim().isEmpty
-            ? null
-            : 'Invoice: ${_invoiceController.text.trim()}',
-      ),
-    );
+        category: product.category,
+        body: body,
+      ));
+      _clearForm();
+    });
+  }
 
-    final outOfStock = nextQty == 0;
-    showToast(
-      context,
-      outOfStock
-          ? tr.outOfStockWarning(qty, product.name)
-          : tr.unitsDispatched(qty, product.name),
-      backgroundColor: outOfStock ? Colors.orange : null,
-    );
+  Future<void> _finishAndDispatch() async {
+    final tr = context.tr;
+    if (_sessionItems.isEmpty) return;
+    setState(() => _saving = true);
 
-    if (context.mounted) Navigator.pop(context);
+    String? error;
+    int totalQty = 0;
+
+    for (final item in _sessionItems) {
+      final err = await widget.provider.updateProduct(
+        item.productId,
+        item.body,
+      );
+      if (err != null && error == null) error = err;
+
+      OrderService.addOrder(
+        OrderModel(
+          productId: item.productId,
+          productName: item.name,
+          productSku: item.sku,
+          quantity: item.qty,
+          unit: item.unit,
+          logNumber: item.logNumber,
+          categoryId: item.categoryId,
+          type: OrderType.export,
+          status: OrderStatus.completed,
+          createdBy: AuthService.currentUser?.fullName ?? tr.unknownUser,
+          notes: _invoiceController.text.trim().isEmpty
+              ? null
+              : 'Invoice: ${_invoiceController.text.trim()}',
+        ),
+      );
+      totalQty += item.qty;
+    }
+
+    setState(() => _saving = false);
+
+    if (error != null) {
+      showToast(context, error, backgroundColor: Colors.red);
+    } else {
+      showToast(
+        context,
+        tr.unitsDispatchedSummary(totalQty, _sessionItems.length),
+      );
+    }
+
+    if (context.mounted) Navigator.of(context).pop(true);
+  }
+
+  void _clearForm() {
+    _searchController.clear();
+    _qtyController.clear();
+    _selectedProduct = null;
+    _query = '';
+    _inlineError = null;
+  }
+
+  void _removeSessionItem(int index) {
+    setState(() => _sessionItems.removeAt(index));
   }
 
   @override
@@ -142,28 +201,33 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
       backgroundColor: isDark ? const Color(0xFF1B2430) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Container(
-        width: 620,
+        width: 660,
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeader(tr, isDark),
-              const SizedBox(height: 20),
-              _buildStepIndicator(isDark),
-              const SizedBox(height: 24),
-              if (_currentStep == 0)
-                _buildInvoiceStep(tr, isDark)
-              else
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: _buildDispatchStep(tr, isDark, selected, results),
-                  ),
-                ),
-              const SizedBox(height: 24),
-              _buildActions(tr, isDark),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(tr, isDark),
+                const SizedBox(height: 20),
+                _buildStepIndicator(isDark),
+                const SizedBox(height: 24),
+                if (_currentStep == 0)
+                  _buildInvoiceStep(tr, isDark)
+                else
+                  _buildDispatchStep(tr, isDark, selected, results),
+                if (_sessionItems.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _buildSessionList(tr, isDark),
+                  const SizedBox(height: 12),
+                  _buildFinishButton(tr, isDark),
+                ],
+                const SizedBox(height: 16),
+                _buildActions(tr, isDark),
+              ],
+            ),
           ),
         ),
       ),
@@ -228,7 +292,9 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: active ? color : Colors.transparent,
-            border: active ? null : Border.all(color: isDark ? Colors.white38 : Colors.black26),
+            border: active
+                ? null
+                : Border.all(color: isDark ? Colors.white38 : Colors.black26),
           ),
           child: Center(
             child: active
@@ -245,7 +311,9 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
         ),
         const SizedBox(height: 6),
         Text(
-          index == 0 ? _tr(context).invoiceNumber : _tr(context).exportProductBtn,
+          index == 0
+              ? context.tr.invoiceNumber
+              : context.tr.exportProductBtn,
           style: TextStyle(
             fontSize: 11,
             color: current
@@ -259,8 +327,6 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
       ],
     );
   }
-
-  AppLocalizations _tr(BuildContext context) => context.tr;
 
   Widget _stepLine(bool isDark) {
     return Expanded(
@@ -277,16 +343,35 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
   }
 
   Widget _buildInvoiceStep(AppLocalizations tr, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: _field(
-        controller: _invoiceController,
-        label: tr.invoiceNumber,
-        hintText: 'e.g. INV-2025-001',
-        icon: Icons.description,
-        isDark: isDark,
-        width: 572,
-        validator: _required,
+    return SizedBox(
+      width: 400,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr.invoiceNumber,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _invoiceController,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            decoration: InputDecoration(
+              hintText: tr.invoiceNumber,
+              prefixIcon: const Icon(Icons.description_outlined),
+              filled: true,
+              fillColor: isDark ? const Color(0xFF2A3441) : Colors.grey[100],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -308,45 +393,27 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
           isDark: isDark,
           validator: (_) => null,
           readOnly: selected,
-          width: 572,
+          width: 610,
           onChanged: (value) => setState(() => _query = value),
         ),
-        if (!selected && results.isNotEmpty) _resultsList(results, isDark),
+        if (!selected && results.isNotEmpty)
+          _resultsList(results, isDark),
         if (selected)
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
-              onPressed: _clearSelection,
+              onPressed: _clearForm,
               icon: const Icon(Icons.clear),
               label: Text(tr.clear),
             ),
           ),
         const SizedBox(height: 14),
         if (selected) _buildProductInfoBox(tr, isDark),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            _field(
-              controller: _nameController,
-              label: tr.materialName,
-              hintText: 'e.g. Paracetamol',
-              icon: Icons.medication_outlined,
-              isDark: isDark,
-              readOnly: selected,
-              onChanged: _syncQuery,
-            ),
-            _field(
-              controller: _skuController,
-              label: tr.materialSku,
-              hintText: 'e.g. MED-1001',
-              icon: Icons.qr_code_2_outlined,
-              isDark: isDark,
-              readOnly: selected,
-              onChanged: _syncQuery,
-            ),
-            _field(
+        if (selected) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: 280,
+            child: _field(
               controller: _qtyController,
               label: tr.quantity,
               hintText: '1',
@@ -355,36 +422,10 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
               isDark: isDark,
               validator: _validatePositiveInteger,
             ),
-            _field(
-              controller: _unitController,
-              label: tr.unit,
-              hintText: 'box / bottle / strip',
-              icon: Icons.straighten_outlined,
-              isDark: isDark,
-              readOnly: selected,
-            ),
-            _field(
-              controller: _lotController,
-              label: tr.logNumber,
-              hintText: 'LOT-2026-01',
-              icon: Icons.badge_outlined,
-              isDark: isDark,
-              readOnly: selected,
-            ),
-            _field(
-              controller: _categoryIdController,
-              label: tr.categoryId,
-              hintText: '1',
-              icon: Icons.category_outlined,
-              keyboardType: TextInputType.number,
-              isDark: isDark,
-              readOnly: selected,
-              validator: _validatePositiveInteger,
-            ),
-          ],
-        ),
+          ),
+        ],
         if (_inlineError != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
@@ -517,11 +558,142 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
     );
   }
 
+  Widget _buildSessionList(AppLocalizations tr, bool isDark) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2A3441) : Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black12,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+            child: Row(
+              children: [
+                Text(
+                  tr.itemsToDispatch,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${_sessionItems.length}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _sessionItems.length,
+            separatorBuilder: (_, __) => const Divider(height: 1, indent: 16),
+            itemBuilder: (context, index) {
+              final item = _sessionItems[index];
+              return ListTile(
+                dense: true,
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.orange.withOpacity(0.15),
+                  ),
+                  child: const Icon(
+                    Icons.upload_outlined,
+                    size: 18,
+                    color: Colors.orange,
+                  ),
+                ),
+                title: Text(
+                  item.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                subtitle: Text(
+                  '${item.sku}  \u2022  -${item.qty} ${item.unit}  (Stock: ${item.stockBefore})',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+                trailing: IconButton(
+                  onPressed: () => _removeSessionItem(index),
+                  icon: Icon(
+                    Icons.remove_circle_outline,
+                    size: 20,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinishButton(AppLocalizations tr, bool isDark) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton.icon(
+        onPressed: _saving ? null : _finishAndDispatch,
+        icon: _saving
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.check_circle_outline),
+        label: Text(tr.finishDispatchAll),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.orange.withOpacity(0.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActions(AppLocalizations tr, bool isDark) {
     return Row(
-      mainAxisAlignment: _currentStep == 0
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.spaceBetween,
+      mainAxisAlignment:
+          _currentStep == 0 ? MainAxisAlignment.end : MainAxisAlignment.spaceBetween,
       children: [
         if (_currentStep == 1)
           TextButton.icon(
@@ -550,7 +722,7 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
               ElevatedButton.icon(
                 onPressed: _goToNextStep,
                 icon: const Icon(Icons.arrow_forward, size: 18),
-                label: const Text('Next'),
+                label: Text(tr.save),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1CA0A5),
                   foregroundColor: Colors.white,
@@ -560,12 +732,14 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
               )
             else
               ElevatedButton.icon(
-                onPressed: _submit,
-                icon: const Icon(Icons.upload_outlined),
-                label: Text(tr.exportProductBtn),
+                onPressed: _selectedProduct != null ? _addToSession : null,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(tr.addToDispatch),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1CA0A5),
                   foregroundColor: Colors.white,
+                  disabledBackgroundColor:
+                      const Color(0xFF1CA0A5).withOpacity(0.4),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 18, vertical: 14),
                 ),
@@ -591,7 +765,7 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
   Widget _resultsList(List<MaterialModel> results, bool isDark) {
     final tr = context.tr;
     return Container(
-      width: 572,
+      width: 610,
       constraints: const BoxConstraints(maxHeight: 190),
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
@@ -609,7 +783,15 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
             title: Text(product.name),
             subtitle: Text(
                 '${tr.sku}: ${product.sku} | ${tr.quantity}: ${product.quantity}'),
-            onTap: () => _selectProduct(product),
+            onTap: () {
+              setState(() {
+                _selectedProduct = product;
+                _searchController.text = '${product.name} (${product.sku})';
+                _qtyController.clear();
+                _query = '';
+                _inlineError = null;
+              });
+            },
           );
         },
       ),
@@ -648,16 +830,13 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
             readOnly: readOnly,
             onChanged: onChanged,
             validator: readOnly ? (_) => null : validator ?? _required,
-            style:
-                TextStyle(color: isDark ? Colors.white : Colors.black87),
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
             decoration: InputDecoration(
               hintText: hintText,
               prefixIcon: Icon(icon),
-              suffixIcon:
-                  readOnly ? const Icon(Icons.lock_outline) : null,
+              suffixIcon: readOnly ? const Icon(Icons.lock_outline) : null,
               filled: true,
-              fillColor:
-                  isDark ? const Color(0xFF2A3441) : Colors.grey[100],
+              fillColor: isDark ? const Color(0xFF2A3441) : Colors.grey[100],
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -680,44 +859,6 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
         )
         .take(6)
         .toList();
-  }
-
-  void _selectProduct(MaterialModel product) {
-    setState(() {
-      _selectedProduct = product;
-      _searchController.text = '${product.name} (${product.sku})';
-      _nameController.text = product.name;
-      _skuController.text = product.sku;
-      _qtyController.clear();
-      _unitController.text = product.unit;
-      _lotController.text = product.lot;
-      _categoryIdController.text = product.categoryId.toString();
-      _query = '';
-      _inlineError = null;
-    });
-  }
-
-  void _syncQuery(String value) {
-    if (_selectedProduct != null) return;
-    setState(() {
-      _query = value;
-      _searchController.text = value;
-    });
-  }
-
-  void _clearSelection() {
-    setState(() {
-      _selectedProduct = null;
-      _inlineError = null;
-      _query = '';
-      _searchController.clear();
-      _nameController.clear();
-      _skuController.clear();
-      _qtyController.clear();
-      _unitController.clear();
-      _lotController.clear();
-      _categoryIdController.clear();
-    });
   }
 
   String? _required(String? value) {
