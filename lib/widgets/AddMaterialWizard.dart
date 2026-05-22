@@ -282,13 +282,14 @@ class _AddMaterialWizardState extends State<AddMaterialWizard> {
       OrderService.addOrder(order);
     }
 
+    setState(() => _saving = false);
+
     if (error != null) {
-      setState(() => _saving = false);
       _toast(error);
-      return;
+    } else {
+      _toast(tr.stockUpdated);
     }
 
-    _toast(tr.stockUpdated);
     if (mounted) Navigator.of(context).pop(true);
   }
 
@@ -383,66 +384,35 @@ class _AddMaterialWizardState extends State<AddMaterialWizard> {
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, result) async {
-          if (didPop || _saving) return;
+          if (didPop) return;
           final shouldPop = await _maybeDiscard();
           if (shouldPop && context.mounted) Navigator.of(context).pop();
         },
-        child: Stack(
-          children: [
-            Container(
-              width: 680,
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(tr, isDark),
-                      const SizedBox(height: 20),
-                      _buildStepContent(tr, isDark),
-                      const SizedBox(height: 20),
-                      if (_hasSessionItems) ...[
-                        _buildSessionList(tr, isDark),
-                        const SizedBox(height: 16),
-                        _buildFinishButton(tr, isDark),
-                        const SizedBox(height: 12),
-                      ],
-                      _buildActionRow(tr, isDark),
-                    ],
-                  ),
-                ),
+        child: Container(
+          width: 680,
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(tr, isDark),
+                  const SizedBox(height: 20),
+                  _buildStepContent(tr, isDark),
+                  const SizedBox(height: 20),
+                  if (_hasSessionItems) ...[
+                    _buildSessionList(tr, isDark),
+                    const SizedBox(height: 16),
+                    _buildFinishButton(tr, isDark),
+                    const SizedBox(height: 12),
+                  ],
+                  _buildActionRow(tr, isDark),
+                ],
               ),
             ),
-            if (_saving)
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.black.withOpacity(0.6)
-                        : Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
-                        Text(
-                          tr.saving,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
