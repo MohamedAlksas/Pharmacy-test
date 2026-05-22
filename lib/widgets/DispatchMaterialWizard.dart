@@ -163,17 +163,13 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
       totalQty += item.qty;
     }
 
-    setState(() => _saving = false);
-
     if (error != null) {
+      setState(() => _saving = false);
       showToast(context, error, backgroundColor: Colors.red);
-    } else {
-      showToast(
-        context,
-        tr.unitsDispatchedSummary(totalQty, _sessionItems.length),
-      );
+      return;
     }
 
+    showToast(context, tr.unitsDispatchedSummary(totalQty, _sessionItems.length));
     if (context.mounted) Navigator.of(context).pop(true);
   }
 

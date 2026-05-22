@@ -282,14 +282,13 @@ class _AddMaterialWizardState extends State<AddMaterialWizard> {
       OrderService.addOrder(order);
     }
 
-    setState(() => _saving = false);
-
     if (error != null) {
+      setState(() => _saving = false);
       _toast(error);
-    } else {
-      _toast(tr.stockUpdated);
+      return;
     }
 
+    _toast(tr.stockUpdated);
     if (mounted) Navigator.of(context).pop(true);
   }
 

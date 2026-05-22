@@ -97,15 +97,11 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      ),
+      builder: (_) => const _UpdateLoadingDialog(),
     );
+
+    // small delay so the loading dialog renders before the network call
+    await Future.delayed(const Duration(milliseconds: 100));
 
     final available = await UpdateService.isUpdateAvailable();
     if (!mounted) return;
@@ -357,4 +353,30 @@ class _MenuItem {
   final String label;
   final int index;
   _MenuItem(this.icon, this.label, this.index);
+}
+
+class _UpdateLoadingDialog extends StatelessWidget {
+  const _UpdateLoadingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Dialog(
+      backgroundColor: isDark ? const Color(0xFF1B2430) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: const Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
