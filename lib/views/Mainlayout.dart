@@ -94,8 +94,22 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
   Future<void> _logout() async => await AuthService.logout();
 
   Future<void> _checkForUpdates() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      ),
+    );
+
     final available = await UpdateService.isUpdateAvailable();
     if (!mounted) return;
+    if (context.mounted) Navigator.of(context).pop();
 
     if (available) {
       final remote = await UpdateService.fetchLatestVersion();

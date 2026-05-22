@@ -200,35 +200,69 @@ class _DispatchMaterialWizardState extends State<DispatchMaterialWizard> {
       insetPadding: const EdgeInsets.all(24),
       backgroundColor: isDark ? const Color(0xFF1B2430) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Container(
-        width: 660,
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(tr, isDark),
-                const SizedBox(height: 20),
-                _buildStepIndicator(isDark),
-                const SizedBox(height: 24),
-                if (_currentStep == 0)
-                  _buildInvoiceStep(tr, isDark)
-                else
-                  _buildDispatchStep(tr, isDark, selected, results),
-                if (_sessionItems.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _buildSessionList(tr, isDark),
-                  const SizedBox(height: 12),
-                  _buildFinishButton(tr, isDark),
-                ],
-                const SizedBox(height: 16),
-                _buildActions(tr, isDark),
-              ],
+      child: PopScope(
+        canPop: !_saving,
+        child: Stack(
+          children: [
+            Container(
+              width: 660,
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(tr, isDark),
+                      const SizedBox(height: 20),
+                      _buildStepIndicator(isDark),
+                      const SizedBox(height: 24),
+                      if (_currentStep == 0)
+                        _buildInvoiceStep(tr, isDark)
+                      else
+                        _buildDispatchStep(tr, isDark, selected, results),
+                      if (_sessionItems.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _buildSessionList(tr, isDark),
+                        const SizedBox(height: 12),
+                        _buildFinishButton(tr, isDark),
+                      ],
+                      const SizedBox(height: 16),
+                      _buildActions(tr, isDark),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
+            if (_saving)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.black.withOpacity(0.6)
+                        : Colors.white.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          tr.saving,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
